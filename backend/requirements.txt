@@ -1,7 +1,10 @@
 asgiref==3.12.1
 Django==6.1.1
 django-cors-headers==4.9.0
+djangorestframework==3.18.1
+djangorestframework_simplejwt==5.5.1
 pillow==12.3.0
 psycopg==3.3.6
+PyJWT==2.15.0
 python-decouple==3.8
 sqlparse==0.6.0
