@@ -1,19 +1,7 @@
 import type { Client, Project, Task, Material, Quote, User } from '../types';
 
-export const currentUser: User = {
-  id: 'u1',
-  name: 'Valeria Ortega',
-  email: 'valeria@cosplaycrafthub.com',
-  role: 'admin',
-  active: true,
-};
-
-export const users: User[] = [
-  currentUser,
-  { id: 'u2', name: 'Tomás Ríos', email: 'tomas@cosplaycrafthub.com', role: 'maker', active: true },
-  { id: 'u3', name: 'Camila Fuentes', email: 'camila@cosplaycrafthub.com', role: 'maker', active: true },
-  { id: 'u4', name: 'Diego Paredes', email: 'diego@cosplaycrafthub.com', role: 'viewer', active: false },
-];
+// Usuarios de prueba para las pantallas que todavía los necesitan.
+export const users: User[] = [];
 
 export const clients: Client[] = [
   { id: 'c1', name: 'Sofía Reyes', email: 'sofia@email.com', phone: '+52 55 1234-5678', city: 'CDMX', projects: 4, totalSpent: 18500, status: 'active', joinedAt: '2023-03-10', notes: 'Coleccionista VIP. Prefiere comunicación por WhatsApp.' },

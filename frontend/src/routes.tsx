@@ -1,5 +1,8 @@
 import { createBrowserRouter, Navigate } from 'react-router';
+
 import Layout from './components/layout/Layout';
+import ProtectedRoute from './components/protectRoute';
+
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
@@ -16,18 +19,51 @@ export const router = createBrowserRouter([
     Component: Login,
   },
   {
-    path: '/',
-    Component: Layout,
+    element: <ProtectedRoute />,
     children: [
-      { index: true, element: <Navigate to="/login" replace /> },
-      { path: 'dashboard', Component: Dashboard },
-      { path: 'projects', Component: Projects },
-      { path: 'projects/new', Component: CreateProject },
-      { path: 'projects/:id', Component: ProjectDetail },
-      { path: 'clients', Component: Clients },
-      { path: 'inventory', Component: Inventory },
-      { path: 'quotes', Component: Quotes },
-      { path: 'settings', Component: Settings },
+      {
+        path: '/',
+        Component: Layout,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="/dashboard" replace />,
+          },
+          {
+            path: 'dashboard',
+            Component: Dashboard,
+          },
+          {
+            path: 'projects',
+            Component: Projects,
+          },
+          {
+            path: 'projects/new',
+            Component: CreateProject,
+          },
+          {
+            path: 'projects/:id',
+            Component: ProjectDetail,
+          },
+          {
+            path: 'clients',
+            Component: Clients,
+          },
+          {
+            path: 'inventory',
+            Component: Inventory,
+          },
+          {
+            path: 'quotes',
+            Component: Quotes,
+          },
+          {
+            path: 'settings',
+            Component: Settings,
+          },
+        ],
+      },
     ],
   },
 ]);
+

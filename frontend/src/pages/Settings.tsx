@@ -6,12 +6,16 @@ import Tabs from '../components/ui/Tabs';
 import { Input, Select, Textarea } from '../components/ui/Input';
 import { users as initialUsers } from '../data/mockData';
 import type { User } from '../types';
+import { getRole, type Role } from '../lib/auth';   // <- NUEVO
 
-const tabs = [
-  { id: 'workshop', label: 'Taller', icon: <Building2 size={14} /> },
-  { id: 'users', label: 'Usuarios y Roles', icon: <UserIcon size={14} /> },
-  { id: 'prefs', label: 'Preferencias', icon: <Shield size={14} /> },
+// REEMPLAZA la constante `tabs` por esta:
+const allTabs: { id: string; label: string; icon: React.ReactNode; roles: Role[] }[] = [
+  { id: 'workshop', label: 'Taller', icon: <Building2 size={14} />, roles: ['admin'] },
+  { id: 'users', label: 'Usuarios y Roles', icon: <UserIcon size={14} />, roles: ['admin'] },
+  { id: 'prefs', label: 'Preferencias', icon: <Shield size={14} />, roles: ['admin', 'maker', 'viewer'] },
 ];
+
+// roleLabel, roleVariant, WorkshopTab, UsersTab y PrefsTab: SIN CAMBIOS
 
 const roleLabel: Record<string, string> = { admin: 'Administrador', maker: 'Maker', viewer: 'Visualizador' };
 const roleVariant: Record<string, 'danger' | 'primary' | 'muted'> = { admin: 'danger', maker: 'primary', viewer: 'muted' };
@@ -217,13 +221,18 @@ function PrefsTab() {
 }
 
 export default function Settings() {
+  const role = getRole();
+  const tabs = allTabs
+    .filter(t => t.roles.includes(role))
+    .map(({ roles, ...tab }) => tab);
+
   return (
     <div className="max-w-3xl">
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
         <Tabs tabs={tabs}>
           {(active) => {
-            if (active === 'workshop') return <WorkshopTab />;
-            if (active === 'users') return <UsersTab />;
+            if (active === 'workshop' && role === 'admin') return <WorkshopTab />;
+            if (active === 'users' && role === 'admin') return <UsersTab />;
             if (active === 'prefs') return <PrefsTab />;
             return null;
           }}
