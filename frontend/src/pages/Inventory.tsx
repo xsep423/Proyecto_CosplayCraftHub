@@ -38,8 +38,13 @@ export default function Inventory() {
   const [adjustTarget, setAdjustTarget] = useState<Material | null>(null);
   const [adjustQty, setAdjustQty] = useState('');
   const [form, setForm] = useState(emptyForm);
+  const [deleteTarget, setDeleteTarget] = useState<Material | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
-  const canEdit = getRole() !== 'viewer';
+  const role = getRole();
+  const canEdit = role !== 'viewer';
+  const canDelete = role === 'admin';
 
   useEffect(() => {
     api<Material[]>('/inventory/materials/')
@@ -81,6 +86,11 @@ export default function Inventory() {
     setAdjustQty('');
     setAdjustError('');
     setAdjustModalOpen(true);
+  };
+
+  const openDelete = (m: Material) => {
+    setDeleteTarget(m);
+    setDeleteError('');
   };
 
   const handleSave = async () => {
@@ -131,6 +141,22 @@ export default function Inventory() {
     } catch (e) {
       const err = e as { detail?: string; delta?: string[] };
       setAdjustError(err.detail ?? err.delta?.[0] ?? 'No se pudo aplicar el ajuste.');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await api<void>(`/inventory/materials/${deleteTarget.id}/`, { method: 'DELETE' });
+      setMaterials(ms => ms.filter(m => m.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (e) {
+      const err = e as { detail?: string };
+      setDeleteError(err.detail ?? 'No se pudo eliminar el material.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -242,6 +268,14 @@ export default function Inventory() {
                         >
                           Editar
                         </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => openDelete(m)}
+                            className="text-xs px-2 py-1 rounded-md bg-panel hover:bg-red-500/20 text-muted hover:text-red-400 transition-colors"
+                          >
+                            Eliminar
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>
@@ -320,6 +354,36 @@ export default function Inventory() {
             hint="Ingresa un número positivo para agregar o negativo para descontar"
           />
           {adjustError && <p className="text-xs text-red-400">{adjustError}</p>}
+        </div>
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Eliminar material"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-text">
+            ¿Seguro que quieres eliminar <span className="font-semibold">{deleteTarget?.name}</span>?
+          </p>
+          <p className="text-xs text-muted">
+            Esta acción no se puede deshacer y también borra su historial de movimientos.
+          </p>
+          {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
         </div>
       </Modal>
     </div>

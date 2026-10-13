@@ -1,4 +1,5 @@
 import { logout } from '../lib/auth';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export async function apiRequest(
@@ -43,5 +44,6 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     throw new Error('Sesión expirada');
   }
   if (!res.ok) throw await res.json().catch(() => ({}));
+  if (res.status === 204) return undefined as T;
   return res.json();
 }
