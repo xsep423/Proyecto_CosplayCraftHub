@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import get_role
+from .models import get_role, Workshop
 
 
 class LoginSerializer(serializers.Serializer):
@@ -38,3 +38,12 @@ class LoginSerializer(serializers.Serializer):
                 'role': role,
             },
         }
+
+
+class WorkshopSerializer(serializers.ModelSerializer):
+    # El frontend usa "taxRate"; en la base se guarda como tax_rate
+    taxRate = serializers.DecimalField(source='tax_rate', max_digits=5, decimal_places=2)
+
+    class Meta:
+        model = Workshop
+        fields = ['name', 'owner', 'email', 'phone', 'city', 'address', 'bio', 'currency', 'taxRate']

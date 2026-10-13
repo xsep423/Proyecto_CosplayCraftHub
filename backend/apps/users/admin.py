@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 
-from .models import Profile
+from .models import Profile, Workshop
 
 
 class ProfileInline(admin.StackedInline):
@@ -29,6 +29,28 @@ class UserAdmin(BaseUserAdmin):
     def get_role(self, obj):
         profile = getattr(obj, 'profile', None)
         return profile.role if profile else '—'
+
+
+@admin.register(Workshop)
+class WorkshopAdmin(admin.ModelAdmin):
+    list_display = ('name', 'owner', 'email', 'phone', 'city', 'currency', 'tax_rate')
+
+    fieldsets = (
+        ('Perfil del taller', {
+            'fields': ('name', 'owner', 'email', 'phone', 'city', 'address', 'bio'),
+        }),
+        ('Configuración financiera', {
+            'fields': ('currency', 'tax_rate'),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        # Solo puede existir un taller
+        return not Workshop.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 
 admin.site.unregister(User)
