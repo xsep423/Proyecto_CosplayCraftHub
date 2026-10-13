@@ -1,9 +1,9 @@
 import { NavLink, useNavigate } from 'react-router';
+import { getCurrentUser, getUserName, getRole, logout } from '../../lib/auth';
 import {
   LayoutDashboard, FolderKanban, Users, Package,
   FileText, Settings, Wand2, LogOut, X,
 } from 'lucide-react';
-import { currentUser } from '../../data/mockData';
 
 const nav = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -18,7 +18,21 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ onClose }: SidebarProps) {
-  const navigate = useNavigate();
+	const navigate = useNavigate();
+	const currentUser = getCurrentUser();
+	const userName = getUserName();
+	const role = getRole();
+
+	const roleLabel: Record<string, string> = {
+	  admin: 'Administrador',
+	  maker: 'Maker',
+	  viewer: 'Visualizador',
+	};
+
+	const handleLogout = () => {
+	  logout();
+	  navigate('/login', { replace: true });
+	};
 
   return (
     <aside className="flex flex-col h-full w-64 bg-surface border-r border-border">
@@ -95,21 +109,25 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-panel transition-colors cursor-pointer">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
             <span className="text-xs font-bold text-white">
-              {currentUser.name.split(' ').map(n => n[0]).join('')}
-            </span>
+				{userName
+				.split(' ')
+				.map(n => n[0])
+				.join('')
+				.toUpperCase()}
+			</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-text truncate">{currentUser.name}</p>
-            <p className="text-xs text-muted truncate">{currentUser.role === 'admin' ? 'Administrador' : 'Maker'}</p>
-          </div>
-          <button
-            onClick={() => navigate('/login')}
-            className="p-1 rounded-md hover:bg-border text-muted hover:text-text transition-colors flex-shrink-0"
-            title="Cerrar sesión"
-          >
-            <LogOut size={14} />
-          </button>
-        </div>
+        <div className="flex-1 min-w-0">
+			  <p className="text-sm font-medium text-text truncate">{userName}</p>
+			  <p className="text-xs text-muted truncate">{roleLabel[role]}</p>
+		</div>
+			<button
+			  onClick={handleLogout}
+			  className="p-1 rounded-md hover:bg-border text-muted hover:text-text transition-colors flex-shrink-0"
+			  title="Cerrar sesión"
+			>
+			  <LogOut size={14} />
+			</button>
+		</div>
       </div>
     </aside>
   );
