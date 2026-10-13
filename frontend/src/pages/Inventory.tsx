@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Search, AlertTriangle, Package } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import { Input, Select } from '../components/ui/Input';
-import { materials as initialMaterials } from '../data/mockData';
 import type { Material, StockStatus } from '../types';
+import { api } from '../services/api';
+import { getRole } from '../lib/auth';
 
 const stockVariant: Record<StockStatus, 'success' | 'warning' | 'danger' | 'muted'> = {
   ok: 'success', low: 'warning', critical: 'danger', out: 'muted',
@@ -16,15 +17,18 @@ const stockLabel: Record<StockStatus, string> = {
 
 const categories = ['Estructura', 'Tela', 'Pintura', 'Electrónica', 'Costura', 'Adhesivos', 'Accesorios'];
 
-function computeStock(quantity: number, minStock: number): StockStatus {
-  if (quantity === 0) return 'out';
-  if (quantity < minStock * 0.5) return 'critical';
-  if (quantity < minStock) return 'low';
-  return 'ok';
-}
+const emptyForm = {
+  name: '', category: '', quantity: '', unit: '',
+  unitCost: '', minStock: '', supplier: '', location: '',
+};
 
 export default function Inventory() {
-  const [materials, setMaterials] = useState<Material[]>(initialMaterials);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [adjustError, setAdjustError] = useState('');
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [stockFilter, setStockFilter] = useState('');
@@ -33,7 +37,16 @@ export default function Inventory() {
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [adjustTarget, setAdjustTarget] = useState<Material | null>(null);
   const [adjustQty, setAdjustQty] = useState('');
-  const [form, setForm] = useState({ name: '', category: '', quantity: '', unit: '', unitCost: '', minStock: '', supplier: '', location: '' });
+  const [form, setForm] = useState(emptyForm);
+
+  const canEdit = getRole() !== 'viewer';
+
+  useEffect(() => {
+    api<Material[]>('/inventory/materials/')
+      .then(setMaterials)
+      .catch(() => setError('No se pudo cargar el inventario.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }));
@@ -47,60 +60,87 @@ export default function Inventory() {
 
   const openCreate = () => {
     setEditMaterial(null);
-    setForm({ name: '', category: '', quantity: '', unit: '', unitCost: '', minStock: '', supplier: '', location: '' });
+    setForm(emptyForm);
+    setFormError('');
     setModalOpen(true);
   };
 
   const openEdit = (m: Material) => {
     setEditMaterial(m);
-    setForm({ name: m.name, category: m.category, quantity: String(m.quantity), unit: m.unit, unitCost: String(m.unitCost), minStock: String(m.minStock), supplier: m.supplier ?? '', location: m.location ?? '' });
+    setForm({
+      name: m.name, category: m.category, quantity: String(m.quantity), unit: m.unit,
+      unitCost: String(m.unitCost), minStock: String(m.minStock),
+      supplier: m.supplier ?? '', location: m.location ?? '',
+    });
+    setFormError('');
     setModalOpen(true);
   };
 
   const openAdjust = (m: Material) => {
     setAdjustTarget(m);
     setAdjustQty('');
+    setAdjustError('');
     setAdjustModalOpen(true);
   };
 
-  const handleSave = () => {
-    const qty = Number(form.quantity);
-    const minStock = Number(form.minStock);
-    const mat: Material = {
-      id: editMaterial?.id ?? `m${Date.now()}`,
+  const handleSave = async () => {
+    setSaving(true);
+    setFormError('');
+    const payload = {
       name: form.name,
       category: form.category,
-      quantity: qty,
+      quantity: Number(form.quantity),
       unit: form.unit,
       unitCost: Number(form.unitCost),
-      minStock,
-      stock: computeStock(qty, minStock),
+      minStock: Number(form.minStock),
       supplier: form.supplier,
       location: form.location,
     };
-    if (editMaterial) {
-      setMaterials(ms => ms.map(m => m.id === editMaterial.id ? mat : m));
-    } else {
-      setMaterials(ms => [mat, ...ms]);
+    try {
+      if (editMaterial) {
+        const updated = await api<Material>(`/inventory/materials/${editMaterial.id}/`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+        setMaterials(ms => ms.map(m => (m.id === updated.id ? updated : m)));
+      } else {
+        const created = await api<Material>('/inventory/materials/', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        setMaterials(ms => [created, ...ms]);
+      }
+      setModalOpen(false);
+    } catch {
+      setFormError('No se pudo guardar el material. Revisa que todos los campos estén completos.');
+    } finally {
+      setSaving(false);
     }
-    setModalOpen(false);
   };
 
-  const handleAdjust = () => {
+  const handleAdjust = async () => {
     if (!adjustTarget) return;
-    const delta = Number(adjustQty);
-    setMaterials(ms => ms.map(m => {
-      if (m.id !== adjustTarget.id) return m;
-      const newQty = Math.max(0, m.quantity + delta);
-      return { ...m, quantity: newQty, stock: computeStock(newQty, m.minStock) };
-    }));
-    setAdjustModalOpen(false);
+    setAdjustError('');
+    try {
+      const updated = await api<Material>(`/inventory/materials/${adjustTarget.id}/adjust/`, {
+        method: 'POST',
+        body: JSON.stringify({ delta: Number(adjustQty) }),
+      });
+      setMaterials(ms => ms.map(m => (m.id === updated.id ? updated : m)));
+      setAdjustModalOpen(false);
+    } catch (e) {
+      const err = e as { detail?: string; delta?: string[] };
+      setAdjustError(err.detail ?? err.delta?.[0] ?? 'No se pudo aplicar el ajuste.');
+    }
   };
 
   const alerts = materials.filter(m => m.stock !== 'ok').length;
 
   return (
     <div className="space-y-5">
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      {loading && <p className="text-sm text-muted">Cargando inventario...</p>}
+
       {/* Alert banner */}
       {alerts > 0 && (
         <div className="flex items-center gap-3 bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
@@ -142,7 +182,9 @@ export default function Inventory() {
             <option value="critical" className="bg-surface">Crítico</option>
             <option value="out" className="bg-surface">Sin stock</option>
           </select>
-          <Button onClick={openCreate} icon={<Plus size={16} />}>Nuevo Material</Button>
+          {canEdit && (
+            <Button onClick={openCreate} icon={<Plus size={16} />}>Nuevo Material</Button>
+          )}
         </div>
       </div>
 
@@ -152,8 +194,8 @@ export default function Inventory() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                {['Material', 'Categoría', 'Existencias', 'Stock mín.', 'Costo unit.', 'Valor total', 'Estado', ''].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold text-muted uppercase tracking-wider px-4 py-3">{h}</th>
+                {['Material', 'Categoría', 'Existencias', 'Stock mín.', 'Costo unit.', 'Valor total', 'Estado', ''].map((h, i) => (
+                  <th key={i} className="text-left text-xs font-semibold text-muted uppercase tracking-wider px-4 py-3">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -186,24 +228,26 @@ export default function Inventory() {
                     <Badge variant={stockVariant[m.stock]} dot>{stockLabel[m.stock]}</Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => openAdjust(m)}
-                        className="text-xs px-2 py-1 rounded-md bg-panel hover:bg-border text-muted hover:text-text transition-colors"
-                      >
-                        Ajustar
-                      </button>
-                      <button
-                        onClick={() => openEdit(m)}
-                        className="text-xs px-2 py-1 rounded-md bg-panel hover:bg-border text-muted hover:text-text transition-colors"
-                      >
-                        Editar
-                      </button>
-                    </div>
+                    {canEdit && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => openAdjust(m)}
+                          className="text-xs px-2 py-1 rounded-md bg-panel hover:bg-border text-muted hover:text-text transition-colors"
+                        >
+                          Ajustar
+                        </button>
+                        <button
+                          onClick={() => openEdit(m)}
+                          className="text-xs px-2 py-1 rounded-md bg-panel hover:bg-border text-muted hover:text-text transition-colors"
+                        >
+                          Editar
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {!loading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-sm text-muted">
                     No se encontraron materiales.
@@ -223,7 +267,9 @@ export default function Inventory() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>{editMaterial ? 'Guardar' : 'Crear'}</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando...' : editMaterial ? 'Guardar' : 'Crear'}
+            </Button>
           </>
         }
       >
@@ -243,6 +289,7 @@ export default function Inventory() {
           <Input label="Costo unitario (MXN)" type="number" value={form.unitCost} onChange={set('unitCost')} placeholder="0.00" required />
           <Input label="Proveedor" value={form.supplier} onChange={set('supplier')} placeholder="Nombre del proveedor" />
           <Input label="Ubicación" value={form.location} onChange={set('location')} placeholder="Estante A-1" />
+          {formError && <p className="col-span-2 text-xs text-red-400">{formError}</p>}
         </div>
       </Modal>
 
@@ -272,6 +319,7 @@ export default function Inventory() {
             placeholder="Ej: 5 o -2"
             hint="Ingresa un número positivo para agregar o negativo para descontar"
           />
+          {adjustError && <p className="text-xs text-red-400">{adjustError}</p>}
         </div>
       </Modal>
     </div>
