@@ -25,7 +25,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'apps.users',
-    'clientes',
+    'apps.clientes',
     'apps.inventory',
 ]
 
