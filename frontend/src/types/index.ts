@@ -59,30 +59,6 @@ export interface Material {
   location?: string;
 }
 
-export interface QuoteItem {
-  id: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  type: 'material' | 'labor';
-}
-
-export interface Quote {
-  id: string;
-  number: string;
-  clientId: string;
-  clientName: string;
-  projectId?: string;
-  projectName?: string;
-  status: QuoteStatus;
-  items: QuoteItem[];
-  discount: number;
-  tax: number;
-  notes?: string;
-  createdAt: string;
-  validUntil: string;
-}
-
 export interface User {
   id: string;
   name: string;
@@ -90,4 +66,29 @@ export interface User {
   role: 'admin' | 'maker' | 'viewer';
   avatar?: string;
   active: boolean;
+}
+
+export interface QuoteItem {
+  id: number;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  type: 'material' | 'labor';
+}
+
+export interface Quote {
+  id: number;
+  number: string;
+  clientId: number;
+  clientName: string;
+  projectName?: string;
+  status: QuoteStatus;
+  items: QuoteItem[];
+  discount: number;
+  tax: number;
+  notes: string;
+  createdAt: string;
+  validUntil: string;
+  subtotal: number;
+  total: number;
 }

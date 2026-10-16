@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Search, FileText, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import { Input, Select } from '../components/ui/Input';
-import { quotes as initialQuotes, clients } from '../data/mockData';
-import type { Quote, QuoteItem, QuoteStatus } from '../types';
+import type { Quote, QuoteStatus } from '../types';
+import { api } from '../services/api';
+import { getRole } from '../lib/auth';
+
+type ClientOption = { id: number; name: string };
+
+type FormItem = { id: string; description: string; quantity: string; unitPrice: string; type: string };
 
 const statusVariant: Record<QuoteStatus, 'muted' | 'info' | 'success' | 'danger' | 'primary'> = {
   draft: 'muted', sent: 'info', approved: 'success', rejected: 'danger', invoiced: 'primary',
@@ -14,35 +19,70 @@ const statusLabel: Record<QuoteStatus, string> = {
   draft: 'Borrador', sent: 'Enviada', approved: 'Aprobada', rejected: 'Rechazada', invoiced: 'Facturada',
 };
 
-function calcTotal(quote: Quote) {
-  const sub = quote.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const discounted = sub * (1 - quote.discount / 100);
-  return discounted * (1 + quote.tax / 100);
-}
+// Debe coincidir con Quote.TRANSITIONS del backend
+const nextStatuses: Record<QuoteStatus, QuoteStatus[]> = {
+  draft: ['sent'],
+  sent: ['approved', 'rejected', 'draft'],
+  approved: ['invoiced'],
+  rejected: ['draft'],
+  invoiced: [],
+};
+
+const newItem = (): FormItem => ({
+  id: `new${Date.now()}${Math.random()}`,
+  description: '', quantity: '1', unitPrice: '', type: 'material',
+});
+
+const emptyQuote = () => ({
+  clientId: '', discount: '0', tax: '16', notes: '',
+  items: [newItem()],
+});
 
 export default function Quotes() {
-  const [quotes, setQuotes] = useState<Quote[]>(initialQuotes);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [newQuote, setNewQuote] = useState(emptyQuote());
 
-  const [newQuote, setNewQuote] = useState({
-    clientId: '', discount: '0', tax: '16', notes: '',
-    items: [{ id: 'new1', description: '', quantity: '1', unitPrice: '', type: 'material' }] as Array<{ id: string; description: string; quantity: string; unitPrice: string; type: string }>,
-  });
+  const canEdit = getRole() !== 'viewer';
+
+  useEffect(() => {
+    Promise.all([
+      api<Quote[]>('/quotes/'),
+      api<ClientOption[]>('/quotes/clients/'),
+    ])
+      .then(([q, c]) => {
+        setQuotes(q);
+        setClients(c);
+      })
+      .catch(() => setError('No se pudieron cargar las cotizaciones.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = quotes.filter(q => {
-    const matchSearch = q.clientName.toLowerCase().includes(search.toLowerCase()) || q.number.includes(search);
+    const matchSearch =
+      q.clientName.toLowerCase().includes(search.toLowerCase()) ||
+      (q.number ?? '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = !statusFilter || q.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
+  const openCreate = () => {
+    setNewQuote(emptyQuote());
+    setFormError('');
+    setModalOpen(true);
+  };
+
   const addItem = () => {
-    setNewQuote(q => ({
-      ...q,
-      items: [...q.items, { id: `new${Date.now()}`, description: '', quantity: '1', unitPrice: '', type: 'material' }],
-    }));
+    setNewQuote(q => ({ ...q, items: [...q.items, newItem()] }));
   };
 
   const removeItem = (id: string) => {
@@ -50,41 +90,60 @@ export default function Quotes() {
   };
 
   const setItem = (id: string, key: string, value: string) => {
-    setNewQuote(q => ({ ...q, items: q.items.map(i => i.id === id ? { ...i, [key]: value } : i) }));
+    setNewQuote(q => ({ ...q, items: q.items.map(i => (i.id === id ? { ...i, [key]: value } : i)) }));
   };
 
-  const handleCreate = () => {
-    const client = clients.find(c => c.id === newQuote.clientId);
-    if (!client) return;
-    const items: QuoteItem[] = newQuote.items.map(i => ({
-      id: i.id,
-      description: i.description,
-      quantity: Number(i.quantity),
-      unitPrice: Number(i.unitPrice),
-      type: i.type as 'material' | 'labor',
-    }));
-    const quote: Quote = {
-      id: `q${Date.now()}`,
-      number: `CCH-2025-${String(50 + quotes.length).padStart(3, '0')}`,
-      clientId: client.id,
-      clientName: client.name,
-      status: 'draft',
-      items,
-      discount: Number(newQuote.discount),
-      tax: Number(newQuote.tax),
+  const handleCreate = async () => {
+    setSaving(true);
+    setFormError('');
+    const payload = {
+      clientId: Number(newQuote.clientId),
+      discount: Number(newQuote.discount || 0),
+      tax: Number(newQuote.tax || 0),
       notes: newQuote.notes,
-      createdAt: new Date().toISOString().split('T')[0],
-      validUntil: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+      items: newQuote.items.map(i => ({
+        description: i.description,
+        quantity: Number(i.quantity),
+        unitPrice: Number(i.unitPrice),
+        type: i.type,
+      })),
     };
-    setQuotes(qs => [quote, ...qs]);
-    setModalOpen(false);
+    try {
+      const created = await api<Quote>('/quotes/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      setQuotes(qs => [created, ...qs]);
+      setModalOpen(false);
+    } catch {
+      setFormError('No se pudo crear la cotización. Revisa que cada partida tenga descripción, cantidad y precio.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const changeStatus = async (q: Quote, status: QuoteStatus) => {
+    setActionError('');
+    try {
+      const updated = await api<Quote>(`/quotes/${q.id}/status/`, {
+        method: 'POST',
+        body: JSON.stringify({ status }),
+      });
+      setQuotes(qs => qs.map(x => (x.id === updated.id ? updated : x)));
+    } catch (e) {
+      setActionError((e as { detail?: string }).detail ?? 'No se pudo cambiar el estado.');
+    }
   };
 
   const previewSub = newQuote.items.reduce((s, i) => s + Number(i.quantity || 0) * Number(i.unitPrice || 0), 0);
-  const previewTotal = previewSub * (1 - Number(newQuote.discount) / 100) * (1 + Number(newQuote.tax) / 100);
+  const previewTotal = previewSub * (1 - Number(newQuote.discount || 0) / 100) * (1 + Number(newQuote.tax || 0) / 100);
 
   return (
     <div className="space-y-5">
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      {actionError && <p className="text-sm text-red-400">{actionError}</p>}
+      {loading && <p className="text-sm text-muted">Cargando cotizaciones...</p>}
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -107,15 +166,17 @@ export default function Quotes() {
               <option key={v} value={v} className="bg-surface">{l}</option>
             ))}
           </select>
-          <Button onClick={() => setModalOpen(true)} icon={<Plus size={16} />}>Nueva Cotización</Button>
+          {canEdit && (
+            <Button onClick={openCreate} icon={<Plus size={16} />}>Nueva Cotización</Button>
+          )}
         </div>
       </div>
 
       {/* List */}
       <div className="space-y-3">
         {filtered.map(q => {
-          const total = calcTotal(q);
           const isOpen = expanded === q.id;
+          const options = nextStatuses[q.status];
           return (
             <div key={q.id} className="bg-surface border border-border rounded-xl overflow-hidden hover:border-primary/30 transition-colors">
               <div
@@ -133,7 +194,7 @@ export default function Quotes() {
                   <p className="text-xs text-muted mt-0.5">{q.clientName}{q.projectName ? ` · ${q.projectName}` : ''}</p>
                 </div>
                 <div className="text-right hidden sm:block flex-shrink-0">
-                  <p className="text-sm font-bold font-mono text-text">${total.toLocaleString('es-MX', { maximumFractionDigits: 0 })}</p>
+                  <p className="text-sm font-bold font-mono text-text">${q.total.toLocaleString('es-MX', { maximumFractionDigits: 0 })}</p>
                   <p className="text-xs text-muted">{new Date(q.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                 </div>
                 <div className="text-muted flex-shrink-0">
@@ -160,21 +221,35 @@ export default function Quotes() {
                       {q.discount > 0 && (
                         <p className="text-xs text-muted">Descuento: <span className="text-danger">-{q.discount}%</span></p>
                       )}
-                      <p className="text-xs text-muted">IVA ({q.tax}%): included</p>
+                      <p className="text-xs text-muted">IVA ({q.tax}%) incluido</p>
                       <p className="text-base font-bold font-mono text-primary">
-                        Total: ${total.toLocaleString('es-MX', { maximumFractionDigits: 0 })} MXN
+                        Total: ${q.total.toLocaleString('es-MX', { maximumFractionDigits: 0 })} MXN
                       </p>
                     </div>
                   </div>
                   {q.notes && (
                     <p className="text-xs text-muted italic mt-2 border-t border-border pt-2">{q.notes}</p>
                   )}
+
+                  {canEdit && options.length > 0 && (
+                    <div className="flex flex-wrap justify-end gap-2 mt-4 border-t border-border pt-4">
+                      {options.map(s => (
+                        <button
+                          key={s}
+                          onClick={() => changeStatus(q, s)}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-panel hover:bg-border text-muted hover:text-text transition-colors"
+                        >
+                          {s === 'draft' ? 'Volver a borrador' : `Marcar como ${statusLabel[s].toLowerCase()}`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           );
         })}
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="py-16 text-center text-sm text-muted bg-surface border border-border rounded-xl">
             No se encontraron cotizaciones.
           </div>
@@ -190,7 +265,9 @@ export default function Quotes() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!newQuote.clientId}>Crear cotización</Button>
+            <Button onClick={handleCreate} disabled={!newQuote.clientId || saving}>
+              {saving ? 'Creando...' : 'Crear cotización'}
+            </Button>
           </>
         }
       >
@@ -202,7 +279,7 @@ export default function Quotes() {
               onChange={e => setNewQuote(q => ({ ...q, clientId: e.target.value }))}
               placeholder="Seleccionar cliente"
               required
-              options={clients.map(c => ({ value: c.id, label: c.name }))}
+              options={clients.map(c => ({ value: String(c.id), label: c.name }))}
               className="sm:col-span-2"
             />
           </div>
@@ -214,7 +291,7 @@ export default function Quotes() {
               <Button variant="ghost" size="sm" icon={<Plus size={13} />} onClick={addItem}>Agregar partida</Button>
             </div>
             <div className="space-y-2">
-              {newQuote.items.map((item, idx) => (
+              {newQuote.items.map(item => (
                 <div key={item.id} className="grid grid-cols-12 gap-2 items-start bg-panel rounded-lg p-3">
                   <div className="col-span-5">
                     <input
@@ -285,6 +362,8 @@ export default function Quotes() {
             onChange={e => setNewQuote(q => ({ ...q, notes: e.target.value }))}
             placeholder="Notas adicionales para el cliente..."
           />
+
+          {formError && <p className="text-xs text-red-400">{formError}</p>}
         </div>
       </Modal>
     </div>
