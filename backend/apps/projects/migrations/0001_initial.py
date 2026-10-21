@@ -10,9 +10,9 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("clientes", "0003_cliente_workshop"),
-        ("inventory", "0002_material_workshop"),
-        ("users", "0003_multitenant"),
+        ("clientes", "0005_cliente_workshop_constraints"),
+        ("inventory", "0004_material_workshop_constraints"),
+        ("users", "0005_multitenant_constraints"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
