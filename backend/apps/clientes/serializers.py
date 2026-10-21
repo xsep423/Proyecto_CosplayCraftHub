@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
 
 from .models import Cliente
 
@@ -7,15 +6,7 @@ from .models import Cliente
 class ClienteSerializer(serializers.ModelSerializer):
     id = serializers.CharField(read_only=True)
     name = serializers.CharField(source='nombre', max_length=150)
-    email = serializers.EmailField(
-        source='correo',
-        validators=[
-            UniqueValidator(
-                queryset=Cliente.objects.all(),
-                message='Ya existe un cliente con ese correo.',
-            )
-        ],
-    )
+    email = serializers.EmailField(source='correo')
     phone = serializers.CharField(source='telefono', max_length=30, required=False, allow_blank=True)
     city = serializers.CharField(source='ciudad', max_length=100, required=False, allow_blank=True)
     status = serializers.ChoiceField(source='estado', choices=Cliente.Estado.choices, required=False)
@@ -31,12 +22,22 @@ class ClienteSerializer(serializers.ModelSerializer):
             'notes', 'projects', 'totalSpent', 'joinedAt',
         ]
 
-    # Todavía no hay módulo de proyectos en el backend
+    def validate_email(self, value):
+        # Único por taller, no global
+        qs = Cliente.objects.filter(workshop=self.context['workshop'], correo__iexact=value)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('Ya existe un cliente con ese correo.')
+        return value
+
     def get_projects(self, obj):
-        return 0
+        return obj.projects.count()
 
     def get_totalSpent(self, obj):
-        return 0
+        # Lo que el cliente ha aprobado o pagado en cotizaciones
+        quotes = obj.quotes.filter(status__in=['approved', 'invoiced']).prefetch_related('items')
+        return float(sum((q.total for q in quotes), 0))
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

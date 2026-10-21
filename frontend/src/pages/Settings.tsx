@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Save, Shield, User as UserIcon, Building2 } from 'lucide-react';
+import { Save, Shield, User as UserIcon, Building2, UserPlus } from 'lucide-react';
+import Modal from '../components/ui/Modal';
+import { apiErrorMessage } from '../lib/projectLabels';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Tabs from '../components/ui/Tabs';
@@ -137,6 +139,25 @@ function UsersTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const myId = String(getCurrentUser().id ?? '');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'maker' });
+
+  const createUser = async () => {
+    setCreating(true);
+    setCreateError('');
+    try {
+      const created = await api<ApiUser>('/auth/users/', { method: 'POST', body: JSON.stringify(newUser) });
+      setUsers(us => [...us, created]);
+      setCreateOpen(false);
+      setNewUser({ name: '', email: '', password: '', role: 'maker' });
+    } catch (e) {
+      setCreateError(apiErrorMessage(e, 'No se pudo crear el usuario.'));
+    } finally {
+      setCreating(false);
+    }
+  };
 
   useEffect(() => {
     api<ApiUser[]>('/auth/users/')
@@ -162,12 +183,46 @@ function UsersTab() {
 
   return (
     <div className="p-5 space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold text-text">Equipo del taller</h3>
-        <p className="text-xs text-muted mt-0.5">
-          {users.filter(u => u.active).length} activos de {users.length} usuarios
-        </p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-text">Equipo del taller</h3>
+          <p className="text-xs text-muted mt-0.5">
+            {users.filter(u => u.active).length} activos de {users.length} usuarios
+          </p>
+        </div>
+        <Button size="sm" variant="outline" icon={<UserPlus size={14} />} onClick={() => { setCreateError(''); setCreateOpen(true); }}>
+          Nuevo usuario
+        </Button>
       </div>
+
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Nuevo usuario del taller"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={createUser} loading={creating}>Crear</Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Nombre" value={newUser.name} onChange={e => setNewUser(u => ({ ...u, name: e.target.value }))} required />
+          <Input label="Correo" type="email" value={newUser.email} onChange={e => setNewUser(u => ({ ...u, email: e.target.value }))} required />
+          <Input label="Contraseña" type="password" value={newUser.password} hint="Mínimo 8 caracteres" onChange={e => setNewUser(u => ({ ...u, password: e.target.value }))} required />
+          <Select
+            label="Rol"
+            value={newUser.role}
+            onChange={e => setNewUser(u => ({ ...u, role: e.target.value }))}
+            options={[
+              { value: 'admin', label: 'Administrador' },
+              { value: 'maker', label: 'Maker' },
+              { value: 'viewer', label: 'Visualizador' },
+            ]}
+          />
+        </div>
+        {createError && <p className="text-sm text-danger mt-4">{createError}</p>}
+      </Modal>
 
       {error && <p className="text-xs text-red-400">{error}</p>}
 

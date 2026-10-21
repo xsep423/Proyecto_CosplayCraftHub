@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { Plus, Search, FileText, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -34,7 +35,7 @@ const newItem = (): FormItem => ({
 });
 
 const emptyQuote = () => ({
-  clientId: '', discount: '0', tax: '16', notes: '',
+  clientId: '', projectId: '', projectName: '', discount: '0', tax: '16', notes: '',
   items: [newItem()],
 });
 
@@ -53,6 +54,7 @@ export default function Quotes() {
   const [newQuote, setNewQuote] = useState(emptyQuote());
 
   const canEdit = getRole() !== 'viewer';
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     Promise.all([
@@ -62,6 +64,17 @@ export default function Quotes() {
       .then(([q, c]) => {
         setQuotes(q);
         setClients(c);
+        // Viene de "Nueva cotización" en el detalle de un proyecto
+        if (searchParams.get('project') && canEdit) {
+          setNewQuote({
+            ...emptyQuote(),
+            clientId: searchParams.get('client') ?? '',
+            projectId: searchParams.get('project') ?? '',
+            projectName: searchParams.get('projectName') ?? '',
+          });
+          setModalOpen(true);
+          setSearchParams({}, { replace: true });
+        }
       })
       .catch(() => setError('No se pudieron cargar las cotizaciones.'))
       .finally(() => setLoading(false));
@@ -98,6 +111,7 @@ export default function Quotes() {
     setFormError('');
     const payload = {
       clientId: Number(newQuote.clientId),
+      projectId: newQuote.projectId ? Number(newQuote.projectId) : null,
       discount: Number(newQuote.discount || 0),
       tax: Number(newQuote.tax || 0),
       notes: newQuote.notes,
@@ -281,7 +295,14 @@ export default function Quotes() {
               required
               options={clients.map(c => ({ value: String(c.id), label: c.name }))}
               className="sm:col-span-2"
+              disabled={Boolean(newQuote.projectId)}
             />
+            {newQuote.projectId && (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted uppercase tracking-wider">Proyecto</span>
+                <span className="text-sm text-text py-2 truncate">{newQuote.projectName || `#${newQuote.projectId}`}</span>
+              </div>
+            )}
           </div>
 
           {/* Items */}

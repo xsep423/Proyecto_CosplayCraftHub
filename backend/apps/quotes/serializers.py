@@ -4,6 +4,8 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.clientes.models import Cliente
+from apps.projects.models import Project
+from apps.users.tenancy import TenantPrimaryKeyRelatedField
 from .models import Quote, QuoteItem
 
 
@@ -30,7 +32,11 @@ class QuoteItemSerializer(serializers.ModelSerializer):
 
 
 class QuoteSerializer(serializers.ModelSerializer):
-    clientId = serializers.PrimaryKeyRelatedField(source='client', queryset=Cliente.objects.all())
+    # Solo acepta clientes y proyectos del taller del usuario
+    clientId = TenantPrimaryKeyRelatedField(source='client', queryset=Cliente.objects.all())
+    projectId = TenantPrimaryKeyRelatedField(
+        source='project', queryset=Project.objects.all(), required=False, allow_null=True
+    )
     clientName = serializers.SerializerMethodField()
     projectName = serializers.CharField(source='project_name', required=False, allow_blank=True)
     discount = serializers.DecimalField(
@@ -48,7 +54,7 @@ class QuoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quote
         fields = [
-            'id', 'number', 'clientId', 'clientName', 'projectName', 'status',
+            'id', 'number', 'clientId', 'clientName', 'projectId', 'projectName', 'status',
             'items', 'discount', 'tax', 'notes', 'createdAt', 'validUntil',
             'subtotal', 'total',
         ]
@@ -62,6 +68,15 @@ class QuoteSerializer(serializers.ModelSerializer):
 
     def get_total(self, obj):
         return float(obj.total)
+
+    def validate(self, attrs):
+        project = attrs.get('project')
+        client = attrs.get('client') or getattr(self.instance, 'client', None)
+        if project is not None and client is not None and project.client_id != client.id:
+            raise serializers.ValidationError({'projectId': 'El proyecto no pertenece a ese cliente.'})
+        if project is not None and not attrs.get('project_name'):
+            attrs['project_name'] = project.name
+        return attrs
 
     def validate_items(self, value):
         if not value:

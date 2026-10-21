@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router';
-import { getCurrentUser, getUserName, getRole, logout } from '../../lib/auth';
+import { getCurrentUser, getUserName, getRole, getWorkshop, logout } from '../../lib/auth';
 import {
   LayoutDashboard, FolderKanban, Users, Package,
   FileText, Settings, Wand2, LogOut, X,
@@ -22,6 +22,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
 	const currentUser = getCurrentUser();
 	const userName = getUserName();
 	const role = getRole();
+	const workshop = getWorkshop();
 
 	const roleLabel: Record<string, string> = {
 	  admin: 'Administrador',
@@ -44,7 +45,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
           </div>
           <div>
             <p className="text-sm font-bold text-text leading-none">CosplayCraft</p>
-            <p className="text-xs text-muted leading-none mt-0.5">Hub</p>
+            <p className="text-xs text-muted leading-none mt-0.5 truncate max-w-[150px]" title={workshop?.name}>
+              {workshop?.name ?? 'Hub'}
+            </p>
           </div>
         </div>
         {onClose && (

@@ -15,7 +15,13 @@ class ProfileInline(admin.StackedInline):
 
 class UserAdmin(BaseUserAdmin):
     inlines = [ProfileInline]
-    list_display = ('username', 'email', 'get_role', 'is_active', 'is_staff')
+    list_display = ('username', 'email', 'get_workshop', 'get_role', 'is_active', 'is_staff')
+    list_filter = ('profile__workshop', 'is_active')
+
+    @admin.display(description='Taller')
+    def get_workshop(self, obj):
+        profile = getattr(obj, 'profile', None)
+        return profile.workshop if profile and profile.workshop else '—'
 
     # Pide el correo al crear el usuario
     add_fieldsets = (
@@ -33,24 +39,18 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(Workshop)
 class WorkshopAdmin(admin.ModelAdmin):
-    list_display = ('name', 'owner', 'email', 'phone', 'city', 'currency', 'tax_rate')
+    list_display = ('name', 'slug', 'owner', 'email', 'city', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'owner', 'email')
 
     fieldsets = (
         ('Perfil del taller', {
-            'fields': ('name', 'owner', 'email', 'phone', 'city', 'address', 'bio'),
+            'fields': ('name', 'slug', 'owner', 'email', 'phone', 'city', 'address', 'bio', 'is_active'),
         }),
         ('Configuración financiera', {
-            'fields': ('currency', 'tax_rate'),
+            'fields': ('currency', 'tax_rate', 'quote_prefix'),
         }),
     )
-
-    def has_add_permission(self, request):
-        # Solo puede existir un taller
-        return not Workshop.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
 
 
 admin.site.unregister(User)

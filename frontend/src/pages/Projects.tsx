@@ -1,46 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Search, Filter, ChevronRight } from 'lucide-react';
+import { Plus, Search, ChevronRight } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import { projects } from '../data/mockData';
-import type { ProjectStatus, Priority } from '../types';
-
-const statusVariant: Record<ProjectStatus, 'primary' | 'warning' | 'success' | 'muted' | 'danger'> = {
-  planning: 'muted',
-  in_progress: 'primary',
-  review: 'warning',
-  completed: 'success',
-  on_hold: 'danger',
-};
-
-const statusLabel: Record<ProjectStatus, string> = {
-  planning: 'Planificación',
-  in_progress: 'En Proceso',
-  review: 'Revisión',
-  completed: 'Completado',
-  on_hold: 'En Pausa',
-};
-
-const priorityVariant: Record<Priority, 'danger' | 'warning' | 'info' | 'muted'> = {
-  urgent: 'danger',
-  high: 'warning',
-  medium: 'info',
-  low: 'muted',
-};
-
-const priorityLabel: Record<Priority, string> = {
-  urgent: 'Urgente',
-  high: 'Alta',
-  medium: 'Media',
-  low: 'Baja',
-};
+import { api } from '../services/api';
+import { getRole } from '../lib/auth';
+import {
+  statusLabel, statusVariant, priorityLabel, priorityVariant, formatDate, daysUntil,
+} from '../lib/projectLabels';
+import type { Project, ProjectStatus, Priority } from '../types';
 
 export default function Projects() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | ''>('');
   const [priorityFilter, setPriorityFilter] = useState<Priority | ''>('');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const canCreate = getRole() !== 'viewer';
+
+  useEffect(() => {
+    api<Project[]>('/projects/')
+      .then(setProjects)
+      .catch(() => setError('No se pudieron cargar los proyectos.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = projects.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -49,9 +34,6 @@ export default function Projects() {
     const matchPriority = !priorityFilter || p.priority === priorityFilter;
     return matchSearch && matchStatus && matchPriority;
   });
-
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
     <div className="space-y-5">
@@ -87,11 +69,15 @@ export default function Projects() {
               <option key={v} value={v} className="bg-surface">{l}</option>
             ))}
           </select>
-          <Button onClick={() => navigate('/projects/new')} icon={<Plus size={16} />}>
-            Nuevo
-          </Button>
+          {canCreate && (
+            <Button onClick={() => navigate('/projects/new')} icon={<Plus size={16} />}>
+              Nuevo
+            </Button>
+          )}
         </div>
       </div>
+
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {/* Count */}
       <p className="text-xs text-muted">
@@ -121,7 +107,7 @@ export default function Projects() {
                   <td className="px-5 py-4">
                     <div>
                       <p className="text-sm font-medium text-text group-hover:text-primary transition-colors">{p.name}</p>
-                      <p className="text-xs text-muted mt-0.5">{p.responsible}</p>
+                      <p className="text-xs text-muted mt-0.5">{p.responsible || 'Sin responsable'}</p>
                     </div>
                   </td>
                   <td className="px-5 py-4 text-sm text-muted">{p.clientName}</td>
@@ -142,19 +128,30 @@ export default function Projects() {
                       <span className="text-xs font-mono text-muted w-9 text-right">{p.progress}%</span>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-xs font-mono text-muted whitespace-nowrap">
-                    {formatDate(p.dueDate)}
+                  <td className="px-5 py-4 text-xs font-mono whitespace-nowrap">
+                    <span className={
+                      p.status !== 'completed' && daysUntil(p.dueDate) < 0 ? 'text-danger' : 'text-muted'
+                    }>
+                      {formatDate(p.dueDate)}
+                    </span>
                   </td>
                   <td className="px-5 py-4 text-right">
                     <ChevronRight size={16} className="text-muted group-hover:text-primary transition-colors ml-auto" />
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {!loading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-5 py-12 text-center text-sm text-muted">
-                    No se encontraron proyectos con esos filtros.
+                    {projects.length === 0
+                      ? 'Todavía no hay proyectos en este taller.'
+                      : 'No se encontraron proyectos con esos filtros.'}
                   </td>
+                </tr>
+              )}
+              {loading && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-12 text-center text-sm text-muted">Cargando proyectos…</td>
                 </tr>
               )}
             </tbody>

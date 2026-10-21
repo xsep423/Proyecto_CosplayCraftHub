@@ -14,6 +14,9 @@ class Material(models.Model):
         ADHESIVOS = 'Adhesivos', 'Adhesivos'
         ACCESORIOS = 'Accesorios', 'Accesorios'
 
+    workshop = models.ForeignKey(
+        'users.Workshop', on_delete=models.CASCADE, related_name='materials'
+    )
     name = models.CharField(max_length=150)
     category = models.CharField(max_length=30, choices=Category.choices)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)

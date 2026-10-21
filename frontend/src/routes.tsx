@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/protectRoute';
 
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
 import CreateProject from './pages/CreateProject';
@@ -17,6 +18,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     Component: Login,
+  },
+  {
+    path: '/register',
+    Component: Register,
   },
   {
     element: <ProtectedRoute />,
@@ -44,6 +49,10 @@ export const router = createBrowserRouter([
           {
             path: 'projects/:id',
             Component: ProjectDetail,
+          },
+          {
+            path: 'projects/:id/edit',
+            Component: CreateProject,
           },
           {
             path: 'clients',

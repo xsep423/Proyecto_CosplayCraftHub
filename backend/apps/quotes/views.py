@@ -6,15 +6,24 @@ from rest_framework.views import APIView
 
 from apps.clientes.models import Cliente  
 
+from apps.users.tenancy import TenantScopedMixin, get_workshop
+
 from .models import Quote
 from .permissions import QuotePermission
 from .serializers import QuoteSerializer, client_label
 
 
-class QuoteViewSet(viewsets.ModelViewSet):
+class QuoteViewSet(TenantScopedMixin, viewsets.ModelViewSet):
     queryset = Quote.objects.select_related('client').prefetch_related('items')
     serializer_class = QuoteSerializer
     permission_classes = [QuotePermission]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        project = self.request.query_params.get('project')
+        if project:
+            qs = qs.filter(project_id=project)
+        return qs
 
     def update(self, request, *args, **kwargs):
         # Solo se editan borradores; el resto cambia de estado con /status/
@@ -49,4 +58,5 @@ class ClientOptionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response([{'id': c.id, 'name': client_label(c)} for c in Cliente.objects.all()])
+        clientes = Cliente.objects.filter(workshop=get_workshop(request.user)).order_by('nombre')
+        return Response([{'id': c.id, 'name': client_label(c)} for c in clientes])

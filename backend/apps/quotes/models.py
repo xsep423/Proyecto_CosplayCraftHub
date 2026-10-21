@@ -2,7 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 
@@ -23,10 +23,22 @@ class Quote(models.Model):
         'invoiced': [],
     }
 
-    number = models.CharField(max_length=30, unique=True, null=True, blank=True, editable=False)
+    workshop = models.ForeignKey(
+        'users.Workshop', on_delete=models.CASCADE, related_name='quotes'
+    )
+    # Consecutivo por taller: cada taller empieza su folio en 1
+    seq = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    number = models.CharField(max_length=30, null=True, blank=True, editable=False)
     client = models.ForeignKey(
-        'clientes.Cliente',          # <- AJUSTA si tu modelo se llama distinto
+        'clientes.Cliente',
         on_delete=models.PROTECT,
+        related_name='quotes',
+    )
+    project = models.ForeignKey(
+        'projects.Project',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='quotes',
     )
     project_name = models.CharField(max_length=150, blank=True)
@@ -43,14 +55,23 @@ class Quote(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['workshop', 'number'], name='quote_folio_unico_por_taller'),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.valid_until:
             self.valid_until = timezone.localdate() + timedelta(days=30)
-        super().save(*args, **kwargs)
         if not self.number:
-            self.number = f'CCH-{timezone.localdate().year}-{self.pk:03d}'
-            super().save(update_fields=['number'])
+            with transaction.atomic():
+                # Bloquea el taller para que dos cotizaciones simultáneas no tomen el mismo folio
+                workshop = type(self.workshop).objects.select_for_update().get(pk=self.workshop_id)
+                last = Quote.objects.filter(workshop=workshop).aggregate(m=models.Max('seq'))['m'] or 0
+                self.seq = last + 1
+                self.number = f'{workshop.quote_prefix}-{timezone.localdate().year}-{self.seq:03d}'
+                super().save(*args, **kwargs)
+            return
+        super().save(*args, **kwargs)
 
     @property
     def subtotal(self):
