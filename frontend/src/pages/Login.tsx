@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Wand2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { apiRequest } from '../services/api';
+import { saveSession } from '../lib/auth';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -28,9 +29,7 @@ export default function Login() {
 		  }),
 		});
 
-		localStorage.setItem('access_token', data.access);
-		localStorage.setItem('refresh_token', data.refresh);
-		localStorage.setItem('user', JSON.stringify(data.user));
+		saveSession(data);
 
 		navigate('/dashboard');
 
@@ -124,10 +123,17 @@ export default function Login() {
               Iniciar sesión
             </Button>
           </form>
+
+          <p className="text-center text-sm text-muted mt-6">
+            ¿Tienes un taller nuevo?{' '}
+            <Link to="/register" className="text-primary hover:text-primary-hover font-medium">
+              Registra tu taller
+            </Link>
+          </p>
         </div>
 
         <p className="text-center text-xs text-muted mt-6">
-          © 2025 CosplayCraft Hub · Todos los derechos reservados
+          © {new Date().getFullYear()} CosplayCraft Hub · Todos los derechos reservados
         </p>
       </div>
     </div>

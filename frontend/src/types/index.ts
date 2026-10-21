@@ -19,11 +19,12 @@ export interface Client {
 }
 
 export interface Project {
-  id: string;
+  id: number;
   name: string;
-  clientId: string;
+  clientId: number;
   clientName: string;
   description: string;
+  responsibleId: number | null;
   responsible: string;
   status: ProjectStatus;
   priority: Priority;
@@ -31,19 +32,75 @@ export interface Project {
   dueDate: string;
   progress: number;
   budget: number;
+  laborCost: number;
+  otherCost: number;
+  materialsCost: number;
   spent: number;
   tags: string[];
+  taskCount: number;
+  doneTasks: number;
+  createdAt: string;
 }
 
 export interface Task {
-  id: string;
-  projectId: string;
+  id: number;
+  projectId: number;
   title: string;
   description?: string;
   status: TaskStatus;
-  assignee?: string;
+  assigneeId: number | null;
+  assignee: string;
   priority: Priority;
-  dueDate?: string;
+  dueDate: string | null;
+}
+
+export interface ProjectMaterial {
+  id: number;
+  projectId: number;
+  materialId: number;
+  materialName: string;
+  category: string;
+  unit: string;
+  quantity: number;
+  unitCost: number;
+  subtotal: number;
+}
+
+export interface Option {
+  id: number;
+  name: string;
+}
+
+export interface Workshop {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface DashboardAlert {
+  type: 'danger' | 'warning' | 'info';
+  kind: 'stock' | 'project' | 'quote';
+  text: string;
+  link: string;
+}
+
+export interface DashboardSummary {
+  workshop: { id: number; name: string; currency: string };
+  stats: {
+    activeProjects: number;
+    newProjectsThisMonth: number;
+    activeClients: number;
+    newClientsThisMonth: number;
+    stockAlerts: number;
+    criticalStock: number;
+    pendingQuotes: number;
+    sentQuotesTotal: number;
+    wonQuotesTotal: number;
+  };
+  projectsByStatus: Record<ProjectStatus, number>;
+  upcoming: Project[];
+  inProgress: Project[];
+  alerts: DashboardAlert[];
 }
 
 export interface Material {
@@ -81,6 +138,7 @@ export interface Quote {
   number: string;
   clientId: number;
   clientName: string;
+  projectId?: number | null;
   projectName?: string;
   status: QuoteStatus;
   items: QuoteItem[];

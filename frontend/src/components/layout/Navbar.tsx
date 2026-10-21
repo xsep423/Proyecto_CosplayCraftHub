@@ -20,6 +20,7 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
 
   const getTitle = () => {
     if (routeTitles[pathname]) return routeTitles[pathname];
+    if (pathname.endsWith('/edit')) return 'Editar Proyecto';
     if (pathname.startsWith('/projects/')) return 'Detalle del Proyecto';
     return 'CosplayCraft Hub';
   };

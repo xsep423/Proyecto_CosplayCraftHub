@@ -28,6 +28,8 @@ INSTALLED_APPS = [
     'apps.clientes',
     'apps.inventory',
     'apps.quotes',
+    'apps.projects',
+    'apps.dashboard',
 ]
 
 MIDDLEWARE = [
@@ -61,6 +63,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # Limita intentos de login y registro de talleres sin sesión
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': config('ANON_THROTTLE_RATE', default='30/min'),
+    },
 }
 
 ROOT_URLCONF = 'config.urls'

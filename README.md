@@ -55,16 +55,16 @@ Actualmente el proyecto se encuentra en desarrollo.
 
 ### Planeadas
 
-* [ ] Registro e inicio de sesión
-* [ ] Gestión de talleres
-* [ ] Gestión de clientes
-* [ ] Gestión de proyectos
-* [ ] Gestión de tareas
-* [ ] Gestión de materiales e inventario
-* [ ] Control de costos
-* [ ] Creación de cotizaciones
-* [ ] Gestión de usuarios y permisos
-* [ ] Multi-tenancy
+* [x] Registro de talleres e inicio de sesión
+* [x] Gestión de talleres
+* [x] Gestión de clientes
+* [x] Gestión de proyectos
+* [x] Gestión de tareas (tablero kanban)
+* [x] Gestión de materiales e inventario
+* [x] Control de costos por proyecto
+* [x] Creación de cotizaciones
+* [x] Gestión de usuarios y permisos
+* [x] Multi-tenancy (ver [docs/MULTITENANT.md](docs/MULTITENANT.md))
 
 ## Instalación
 
@@ -79,7 +79,19 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 python manage.py migrate
+python manage.py seed_demo      # opcional: 2 talleres de demostración
 python manage.py runserver
+```
+
+Usuarios demo (contraseña `Demo1234!`): `admin@forja.demo`, `maker@forja.demo`,
+`viewer@forja.demo`, `admin@hiloespuma.demo`, `maker@hiloespuma.demo`.
+
+Para recrear los datos demo desde cero: `python manage.py seed_demo --reset`.
+
+Pruebas de aislamiento entre talleres:
+
+```bash
+python manage.py test apps
 ```
 
 ### Frontend
