@@ -1,6 +1,13 @@
 import { logout } from '../lib/auth';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const PRODUCTION_API_URL = 'https://proyecto-cosplaycrafthub.onrender.com/api';
+
+// 1) VITE_API_URL si está definida en el build.
+// 2) Si la página corre en localhost, el backend local.
+// 3) En cualquier otro dominio (Vercel), el backend de Render.
+const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+export const API_URL: string =
+  import.meta.env.VITE_API_URL || (isLocal ? 'http://localhost:8000/api' : PRODUCTION_API_URL);
 
 export async function apiRequest(
   endpoint: string,

@@ -4,8 +4,8 @@ import { Wand2, Store, MapPin, User, Mail, Lock } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { saveSession, type Session } from '../lib/auth';
+import { API_URL } from '../services/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 type FieldErrors = Partial<Record<'workshopName' | 'city' | 'ownerName' | 'email' | 'password', string>>;
 
