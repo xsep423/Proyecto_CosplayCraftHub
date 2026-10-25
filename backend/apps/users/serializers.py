@@ -2,11 +2,33 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from django.db import transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Profile, Workshop, get_profile
+
+
+def clean_spaces(value):
+    """Quita espacios sobrantes: '  Taller   X ' -> 'Taller X'."""
+    return ' '.join(value.split())
+
+
+def check_password_strength(password, email, name):
+    """Aplica los validadores de Django y los devuelve como error 400 (no 500)."""
+    candidate = User(username=email, email=email, first_name=name)
+    try:
+        validate_password(password, user=candidate)
+    except DjangoValidationError as e:
+        raise serializers.ValidationError({'password': list(e.messages)})
+
+
+def email_is_taken(email):
+    return (
+        User.objects.filter(email__iexact=email).exists()
+        or User.objects.filter(username__iexact=email).exists()
+    )
 
 
 def build_session(user):
@@ -70,62 +92,107 @@ class RegisterWorkshopSerializer(serializers.Serializer):
     workshopName = serializers.CharField(max_length=150)
     city = serializers.CharField(max_length=100, required=False, allow_blank=True)
     ownerName = serializers.CharField(max_length=150)
-    email = serializers.EmailField()
+    email = serializers.EmailField(max_length=150)   # username admite 150 como máximo
     password = serializers.CharField(write_only=True, min_length=8)
 
+    def validate_workshopName(self, value):
+        value = clean_spaces(value)
+        if not value:
+            raise serializers.ValidationError('El nombre es obligatorio.')
+        if Workshop.objects.filter(name__iexact=value).exists():
+            raise serializers.ValidationError('Ya existe un taller con ese nombre.')
+        return value
+
+    def validate_ownerName(self, value):
+        value = clean_spaces(value)
+        if not value:
+            raise serializers.ValidationError('El nombre es obligatorio.')
+        return value
+
     def validate_email(self, value):
-        if User.objects.filter(email__iexact=value).exists():
+        value = value.strip().lower()
+        if email_is_taken(value):
             raise serializers.ValidationError('Ya existe una cuenta con ese correo.')
-        return value.lower()
+        return value
 
     def validate(self, attrs):
-        validate_password(attrs['password'])
+        check_password_strength(attrs['password'], attrs['email'], attrs['ownerName'])
         return attrs
 
     def create(self, data):
-        first, _, last = data['ownerName'].strip().partition(' ')
-        with transaction.atomic():
-            workshop = Workshop.objects.create(
-                name=data['workshopName'].strip(),
-                owner=data['ownerName'].strip(),
-                email=data['email'],
-                city=data.get('city', ''),
-            )
-            user = User.objects.create_user(
-                username=data['email'],
-                email=data['email'],
-                password=data['password'],
-                first_name=first,
-                last_name=last,
-            )
-            Profile.objects.update_or_create(
-                user=user, defaults={'workshop': workshop, 'role': Profile.Role.ADMIN}
+        first, _, last = data['ownerName'].partition(' ')
+        try:
+            with transaction.atomic():
+                workshop = Workshop.objects.create(
+                    name=data['workshopName'],
+                    owner=data['ownerName'],
+                    email=data['email'],
+                    city=data.get('city', '').strip(),
+                )
+                user = User.objects.create_user(
+                    username=data['email'],
+                    email=data['email'],
+                    password=data['password'],
+                    first_name=first,
+                    last_name=last,
+                )
+                Profile.objects.update_or_create(
+                    user=user,
+                    defaults={'workshop': workshop, 'role': Profile.Role.ADMIN},
+                )
+        except IntegrityError:
+            # Otra alta idéntica ganó la carrera: nada se guarda (rollback)
+            raise serializers.ValidationError(
+                {'workshopName': ['Ya existe un taller o una cuenta con esos datos.']}
             )
         return user
+
+
+# El rol "client" necesita un cliente vinculado, así que no se asigna desde aquí
+MEMBER_ROLE_CHOICES = [(v, l) for v, l in Profile.Role.choices if v != 'client']
 
 
 class CreateMemberSerializer(serializers.Serializer):
     """El admin de un taller da de alta usuarios dentro de SU taller."""
     name = serializers.CharField(max_length=150)
-    email = serializers.EmailField()
+    email = serializers.EmailField(max_length=150)
     password = serializers.CharField(write_only=True, min_length=8)
-    role = serializers.ChoiceField(choices=Profile.Role.choices, default=Profile.Role.MAKER)
+    role = serializers.ChoiceField(choices=MEMBER_ROLE_CHOICES, default=Profile.Role.MAKER)
+
+    def validate_name(self, value):
+        value = clean_spaces(value)
+        if not value:
+            raise serializers.ValidationError('El nombre es obligatorio.')
+        return value
 
     def validate_email(self, value):
-        if User.objects.filter(email__iexact=value).exists():
+        value = value.strip().lower()
+        if email_is_taken(value):
             raise serializers.ValidationError('Ya existe una cuenta con ese correo.')
-        return value.lower()
+        return value
+
+    def validate(self, attrs):
+        check_password_strength(attrs['password'], attrs['email'], attrs['name'])
+        return attrs
 
     def create(self, data):
-        first, _, last = data['name'].strip().partition(' ')
-        with transaction.atomic():
-            user = User.objects.create_user(
-                username=data['email'], email=data['email'], password=data['password'],
-                first_name=first, last_name=last,
-            )
-            Profile.objects.update_or_create(
-                user=user, defaults={'workshop': self.context['workshop'], 'role': data['role']}
-            )
+        first, _, last = data['name'].partition(' ')
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    username=data['email'],
+                    email=data['email'],
+                    password=data['password'],
+                    first_name=first,
+                    last_name=last,
+                )
+                Profile.objects.update_or_create(
+                    user=user,
+                    # El taller sale del contexto (servidor), nunca del JSON del cliente
+                    defaults={'workshop': self.context['workshop'], 'role': data['role']},
+                )
+        except IntegrityError:
+            raise serializers.ValidationError({'email': ['Ya existe una cuenta con ese correo.']})
         return user
 
 
@@ -136,3 +203,14 @@ class WorkshopSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workshop
         fields = ['name', 'owner', 'email', 'phone', 'city', 'address', 'bio', 'currency', 'taxRate']
+
+    def validate_name(self, value):
+        value = clean_spaces(value)
+        if not value:
+            raise serializers.ValidationError('El nombre es obligatorio.')
+        qs = Workshop.objects.filter(name__iexact=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('Ya existe un taller con ese nombre.')
+        return value

@@ -1,6 +1,7 @@
 # apps/users/models.py
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils.text import slugify
 
 
@@ -25,8 +26,16 @@ class Workshop(models.Model):
 
     class Meta:
         ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                Lower('name'),
+                name='unique_workshop_name_ci',
+                violation_error_message='Ya existe un taller con ese nombre.',
+            ),
+        ]
 
     def save(self, *args, **kwargs):
+        self.name = ' '.join(self.name.split())
         if not self.slug:
             base = slugify(self.name) or 'taller'
             slug, n = base, 2
