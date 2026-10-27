@@ -10,8 +10,8 @@ class QuoteItemInline(admin.TabularInline):
 
 @admin.register(Quote)
 class QuoteAdmin(admin.ModelAdmin):
-    list_display = ('number', 'client', 'status', 'total', 'created_at')
-    list_filter = ('status',)
-    search_fields = ('number', 'client__id')
+    list_display = ('number', 'workshop', 'client', 'status', 'total', 'created_at')
+    list_filter = ('workshop', 'status')
+    search_fields = ('number', 'client__nombre')
     readonly_fields = ('number',)
     inlines = [QuoteItemInline]
