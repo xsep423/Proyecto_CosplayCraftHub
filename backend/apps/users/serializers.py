@@ -1,5 +1,6 @@
 # apps/users/serializers.py
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import update_last_login
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -31,17 +32,24 @@ def email_is_taken(email):
     )
 
 
+def is_platform_admin(user):
+    """Super admin de la plataforma: superusuario de Django sin taller asignado."""
+    return bool(user and user.is_superuser and get_profile(user).workshop_id is None)
+
+
 def build_session(user):
     """Tokens + datos de usuario y taller que guarda el frontend."""
     profile = get_profile(user)
     workshop = profile.workshop
+    platform = is_platform_admin(user)
+    role = 'superadmin' if platform else profile.role
 
     refresh = RefreshToken.for_user(user)
     # Se copian al access token. Son solo informativos para el frontend:
-    # el backend siempre vuelve a leer el taller desde la base de datos.
-    refresh['role'] = profile.role
-    refresh['workshop_id'] = workshop.id
-    refresh['workshop'] = workshop.name
+    # el backend siempre vuelve a leer el taller y los permisos desde la base de datos.
+    refresh['role'] = role
+    refresh['workshop_id'] = workshop.id if workshop else None
+    refresh['workshop'] = workshop.name if workshop else None
 
     full_name = f'{user.first_name} {user.last_name}'.strip()
     return {
@@ -52,13 +60,12 @@ def build_session(user):
             'username': user.username,
             'name': full_name or user.username,
             'email': user.email,
-            'role': profile.role,
+            'role': role,
         },
-        'workshop': {
-            'id': workshop.id,
-            'name': workshop.name,
-            'slug': workshop.slug,
-        },
+        'workshop': (
+            {'id': workshop.id, 'name': workshop.name, 'slug': workshop.slug}
+            if workshop else None
+        ),
     }
 
 
@@ -80,10 +87,15 @@ class LoginSerializer(serializers.Serializer):
 
         workshop = get_profile(authenticated_user).workshop
         if workshop is None:
+            # El super admin de la plataforma entra a la consola, no a un taller
+            if is_platform_admin(authenticated_user):
+                update_last_login(None, authenticated_user)
+                return build_session(authenticated_user)
             raise serializers.ValidationError('Tu usuario no pertenece a ningún taller.')
         if not workshop.is_active:
             raise serializers.ValidationError('El taller está desactivado.')
 
+        update_last_login(None, authenticated_user)
         return build_session(authenticated_user)
 
 

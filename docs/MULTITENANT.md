@@ -82,6 +82,23 @@ Toda la lógica está centralizada en `backend/apps/users/tenancy.py`.
 el `Workshop`, el usuario y su `Profile` con rol `admin`. Devuelve los tokens,
 así que el usuario entra directo a su dashboard vacío.
 
+## 4.1 Consola de plataforma (super admin)
+
+El super admin es un superusuario de Django **sin taller**. Al iniciar sesión en
+la app entra a `/platform`, una consola separada que administra talleres, no
+sus datos de negocio:
+
+- Resumen de la plataforma (talleres, usuarios, proyectos, cotizaciones).
+- Lista de talleres con sus conteos, alta de un taller nuevo con su admin.
+- Detalle de un taller: sus usuarios, activar/desactivar el taller completo y
+  restablecer la contraseña de un usuario.
+
+Seguridad: los endpoints `/api/platform/` solo aceptan al super admin
+(`apps/plataforma/permissions.py`, revisado contra la base de datos, no contra
+el token). Las rutas de los talleres siguen rechazando al super admin con 403,
+porque no pertenece a ninguno: la consola no abre una puerta a los datos de
+los talleres. Pruebas en `apps/plataforma/tests.py`.
+
 ## 5. Cómo se comprueba
 
 ```bash

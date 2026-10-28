@@ -150,3 +150,51 @@ export interface Quote {
   subtotal: number;
   total: number;
 }
+
+// ---- Consola de plataforma (super admin) ----
+
+export interface PlatformWorkshop {
+  id: number;
+  name: string;
+  slug: string;
+  owner: string;
+  email: string;
+  city: string;
+  isActive: boolean;
+  createdAt: string;
+  users: number;
+  clients: number;
+  projects: number;
+  quotes: number;
+}
+
+export interface PlatformMember {
+  id: number;
+  name: string;
+  email: string;
+  role: 'admin' | 'maker' | 'viewer';
+  active: boolean;
+  lastLogin: string | null;
+  dateJoined: string;
+}
+
+export interface PlatformWorkshopDetail extends PlatformWorkshop {
+  phone: string;
+  address: string;
+  currency: string;
+  quotePrefix: string;
+  activeProjects: number;
+  wonQuotesTotal: number;
+  members: PlatformMember[];
+}
+
+export interface PlatformSummary {
+  workshops: number;
+  activeWorkshops: number;
+  users: number;
+  clients: number;
+  projects: number;
+  activeProjects: number;
+  quotes: number;
+  recentWorkshops: PlatformWorkshop[];
+}

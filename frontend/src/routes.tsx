@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router';
 
 import Layout from './components/layout/Layout';
+import PlatformLayout from './components/layout/PlatformLayout';
 import ProtectedRoute from './components/protectRoute';
 
 import Login from './pages/Login';
@@ -13,6 +14,9 @@ import Clients from './pages/Clients';
 import Inventory from './pages/Inventory';
 import Quotes from './pages/Quotes';
 import Settings from './pages/Settings';
+import PlatformDashboard from './pages/platform/PlatformDashboard';
+import PlatformWorkshops from './pages/platform/PlatformWorkshops';
+import PlatformWorkshopDetail from './pages/platform/PlatformWorkshopDetail';
 
 export const router = createBrowserRouter([
   {
@@ -26,6 +30,16 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
+      {
+        // Consola del super admin de la plataforma
+        path: '/platform',
+        Component: PlatformLayout,
+        children: [
+          { index: true, Component: PlatformDashboard },
+          { path: 'workshops', Component: PlatformWorkshops },
+          { path: 'workshops/:id', Component: PlatformWorkshopDetail },
+        ],
+      },
       {
         path: '/',
         Component: Layout,

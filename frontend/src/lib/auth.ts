@@ -11,6 +11,17 @@ export function getRole(): Role {
   }
 }
 
+/** Super admin de la plataforma (consola /platform). Solo para la interfaz: el backend lo revisa en la base. */
+export function isPlatformAdmin(): boolean {
+  const token = localStorage.getItem('access_token');
+  if (!token) return false;
+  try {
+    return JSON.parse(atob(token.split('.')[1])).role === 'superadmin';
+  } catch {
+    return false;
+  }
+}
+
 export type CurrentUser = {
   id?: string | number;
   name?: string;
@@ -47,7 +58,7 @@ export type Session = {
   access: string;
   refresh: string;
   user: CurrentUser;
-  workshop: SessionWorkshop;
+  workshop: SessionWorkshop | null;  // null = super admin de la plataforma
 };
 
 /** Guarda lo que devuelven /auth/login/ y /auth/register/. */
@@ -55,7 +66,8 @@ export function saveSession(data: Session) {
   localStorage.setItem('access_token', data.access);
   localStorage.setItem('refresh_token', data.refresh);
   localStorage.setItem('user', JSON.stringify(data.user));
-  localStorage.setItem('workshop', JSON.stringify(data.workshop));
+  if (data.workshop) localStorage.setItem('workshop', JSON.stringify(data.workshop));
+  else localStorage.removeItem('workshop');
 }
 
 /** Taller (tenant) de la sesión actual. Solo es informativo: el backend lo valida. */

@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router';
+import { Navigate, Outlet } from 'react-router';
+import { isPlatformAdmin } from '../../lib/auth';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // El super admin no pertenece a ningún taller: su lugar es la consola
+  if (isPlatformAdmin()) return <Navigate to="/platform" replace />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">

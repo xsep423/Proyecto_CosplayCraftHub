@@ -31,7 +31,7 @@ export default function Login() {
 
 		saveSession(data);
 
-		navigate('/dashboard');
+		navigate(data.user?.role === 'superadmin' ? '/platform' : '/dashboard');
 
 	} catch (error) {
 		setError(
