@@ -66,3 +66,22 @@ input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0px 1000px var(--color-panel) inset;
   transition: background-color 5000s ease-in-out 0s;
 }
+
+/* Impresión (cotización en PDF) */
+@page {
+  size: letter;
+  margin: 14mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #111;
+  }
+  .quote-sheet {
+    max-width: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

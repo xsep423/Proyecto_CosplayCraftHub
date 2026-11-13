@@ -18,6 +18,27 @@ export interface Client {
   notes?: string;
 }
 
+export interface ImageRef {
+  id: string;
+  url: string;
+  thumbUrl: string;
+  width: number;
+  height: number;
+}
+
+export type PhotoStage = 'reference' | 'progress' | 'final';
+
+export interface ProjectPhoto {
+  id: number;
+  projectId: number;
+  caption: string;
+  stage: PhotoStage;
+  isCover: boolean;
+  image: ImageRef;
+  uploadedBy: string;
+  createdAt: string;
+}
+
 export interface Project {
   id: number;
   name: string;
@@ -40,6 +61,9 @@ export interface Project {
   taskCount: number;
   doneTasks: number;
   createdAt: string;
+  isPublic: boolean;
+  cover: ImageRef | null;
+  photoCount: number;
 }
 
 export interface Task {
@@ -75,6 +99,50 @@ export interface Workshop {
   id: number;
   name: string;
   slug: string;
+}
+
+export interface WorkshopProfile {
+  id: number;
+  name: string;
+  slug: string;
+  owner: string;
+  email: string;
+  phone: string;
+  city: string;
+  address: string;
+  bio: string;
+  currency: string;
+  taxRate: string | number;
+  portfolioEnabled: boolean;
+  logo: ImageRef | null;
+}
+
+export interface PublicPhoto extends ImageRef {
+  caption: string;
+  stage: PhotoStage;
+}
+
+export interface PublicPortfolio {
+  workshop: {
+    name: string;
+    slug: string;
+    city: string;
+    bio: string;
+    email: string;
+    phone: string;
+    logo: ImageRef | null;
+  };
+  projects: {
+    id: number;
+    name: string;
+    description: string;
+    tags: string[];
+    status: ProjectStatus;
+    completed: boolean;
+    date: string;
+    cover: ImageRef | null;
+    photos: PublicPhoto[];
+  }[];
 }
 
 export interface DashboardAlert {
@@ -114,6 +182,7 @@ export interface Material {
   stock: StockStatus;
   supplier?: string;
   location?: string;
+  image: ImageRef | null;
 }
 
 export interface User {
@@ -197,4 +266,13 @@ export interface PlatformSummary {
   activeProjects: number;
   quotes: number;
   recentWorkshops: PlatformWorkshop[];
+}
+
+export interface QuoteDocument {
+  quote: Quote;
+  workshop: {
+    name: string; owner: string; email: string; phone: string;
+    city: string; address: string; currency: string; logo: ImageRef | null;
+  };
+  client: { name: string; email: string; phone: string; city: string; address: string };
 }

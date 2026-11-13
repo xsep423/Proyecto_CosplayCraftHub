@@ -14,9 +14,11 @@ import Clients from './pages/Clients';
 import Inventory from './pages/Inventory';
 import Quotes from './pages/Quotes';
 import Settings from './pages/Settings';
-import PlatformDashboard from './pages/platform/PlatformDashboard';
-import PlatformWorkshops from './pages/platform/PlatformWorkshops';
-import PlatformWorkshopDetail from './pages/platform/PlatformWorkshopDetail';
+
+// Páginas que se descargan solo cuando se visitan (el portafolio público no
+// necesita el resto de la app, y la consola de plataforma solo la usa el super admin)
+const page = (load: () => Promise<{ default: React.ComponentType }>) => () =>
+  load().then(m => ({ Component: m.default }));
 
 export const router = createBrowserRouter([
   {
@@ -28,16 +30,26 @@ export const router = createBrowserRouter([
     Component: Register,
   },
   {
+    // Portafolio público del taller (sin sesión)
+    path: '/p/:slug',
+    lazy: page(() => import('./pages/PublicPortfolio')),
+  },
+  {
     element: <ProtectedRoute />,
     children: [
+      {
+        // Documento imprimible, fuera del Layout para que el PDF salga limpio
+        path: '/quotes/:id/print',
+        lazy: page(() => import('./pages/QuotePrint')),
+      },
       {
         // Consola del super admin de la plataforma
         path: '/platform',
         Component: PlatformLayout,
         children: [
-          { index: true, Component: PlatformDashboard },
-          { path: 'workshops', Component: PlatformWorkshops },
-          { path: 'workshops/:id', Component: PlatformWorkshopDetail },
+          { index: true, lazy: page(() => import('./pages/platform/PlatformDashboard')) },
+          { path: 'workshops', lazy: page(() => import('./pages/platform/PlatformWorkshops')) },
+          { path: 'workshops/:id', lazy: page(() => import('./pages/platform/PlatformWorkshopDetail')) },
         ],
       },
       {
@@ -67,6 +79,10 @@ export const router = createBrowserRouter([
           {
             path: 'projects/:id/edit',
             Component: CreateProject,
+          },
+          {
+            path: 'calendar',
+            lazy: page(() => import('./pages/Calendar')),
           },
           {
             path: 'clients',

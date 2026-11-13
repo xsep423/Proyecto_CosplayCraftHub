@@ -21,6 +21,11 @@ class Workshop(models.Model):
     currency = models.CharField(max_length=3, default='MXN')
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=16)
     quote_prefix = models.CharField(max_length=10, default='CCH')
+    logo = models.ForeignKey(
+        'gallery.StoredImage', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    # Página pública /p/<slug> con los proyectos marcados como públicos
+    portfolio_enabled = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

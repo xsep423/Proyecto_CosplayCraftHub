@@ -52,7 +52,12 @@ export function getUserName(): string {
   );
 }
 
-export type SessionWorkshop = { id: number; name: string; slug: string };
+export type SessionWorkshop = {
+  id: number;
+  name: string;
+  slug: string;
+  logo?: { url: string; thumbUrl: string } | null;
+};
 
 export type Session = {
   access: string;
@@ -68,6 +73,14 @@ export function saveSession(data: Session) {
   localStorage.setItem('user', JSON.stringify(data.user));
   if (data.workshop) localStorage.setItem('workshop', JSON.stringify(data.workshop));
   else localStorage.removeItem('workshop');
+}
+
+/** Actualiza datos del taller guardados en la sesión (nombre, logo) y avisa a la interfaz. */
+export function updateSessionWorkshop(patch: Partial<SessionWorkshop>) {
+  const current = getWorkshop();
+  if (!current) return;
+  localStorage.setItem('workshop', JSON.stringify({ ...current, ...patch }));
+  window.dispatchEvent(new Event('workshop-updated'));
 }
 
 /** Taller (tenant) de la sesión actual. Solo es informativo: el backend lo valida. */

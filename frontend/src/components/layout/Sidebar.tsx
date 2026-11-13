@@ -1,13 +1,16 @@
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router';
+import { mediaUrl } from '../../services/api';
 import { getCurrentUser, getUserName, getRole, getWorkshop, logout } from '../../lib/auth';
 import {
   LayoutDashboard, FolderKanban, Users, Package,
-  FileText, Settings, Wand2, LogOut, X,
+  FileText, Settings, Wand2, LogOut, X, CalendarDays,
 } from 'lucide-react';
 
 const nav = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/projects', icon: FolderKanban, label: 'Proyectos' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/inventory', icon: Package, label: 'Inventario' },
   { to: '/quotes', icon: FileText, label: 'Cotizaciones' },
@@ -22,7 +25,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
 	const currentUser = getCurrentUser();
 	const userName = getUserName();
 	const role = getRole();
-	const workshop = getWorkshop();
+	const [workshop, setWorkshop] = useState(getWorkshop);
+
+	// Configuración avisa cuando cambian el nombre o el logo del taller
+	useEffect(() => {
+	  const refresh = () => setWorkshop(getWorkshop());
+	  window.addEventListener('workshop-updated', refresh);
+	  return () => window.removeEventListener('workshop-updated', refresh);
+	}, []);
 
 	const roleLabel: Record<string, string> = {
 	  admin: 'Administrador',
@@ -40,9 +50,17 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center justify-between px-5 h-16 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Wand2 size={16} className="text-white" />
-          </div>
+          {workshop?.logo ? (
+            <img
+              src={mediaUrl(workshop.logo.thumbUrl)}
+              alt=""
+              className="w-8 h-8 rounded-lg object-contain bg-panel flex-shrink-0"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+              <Wand2 size={16} className="text-white" />
+            </div>
+          )}
           <div>
             <p className="text-sm font-bold text-text leading-none">CosplayCraft</p>
             <p className="text-xs text-muted leading-none mt-0.5 truncate max-w-[150px]" title={workshop?.name}>

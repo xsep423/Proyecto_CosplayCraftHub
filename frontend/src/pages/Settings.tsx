@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Save, Shield, User as UserIcon, Building2, UserPlus } from 'lucide-react';
+import { Save, Shield, User as UserIcon, Building2, UserPlus, Globe, Copy, ExternalLink, Check, Wand2 } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import { apiErrorMessage } from '../lib/projectLabels';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Tabs from '../components/ui/Tabs';
 import { Input, Select, Textarea } from '../components/ui/Input';
-import { getRole, getCurrentUser, type Role } from '../lib/auth';
-import { api } from '../services/api';
+import ImagePicker from '../components/media/ImagePicker';
+import { getRole, getCurrentUser, updateSessionWorkshop, type Role } from '../lib/auth';
+import { api, apiUpload } from '../services/api';
+import { imageForm } from '../lib/images';
+import type { ImageRef } from '../types';
 
 const allTabs: { id: string; label: string; icon: React.ReactNode; roles: Role[] }[] = [
   { id: 'workshop', label: 'Taller', icon: <Building2 size={14} />, roles: ['admin', 'maker', 'viewer'] },
@@ -23,12 +26,37 @@ const roleVariant: Record<string, 'danger' | 'primary' | 'muted'> = { admin: 'da
 type WorkshopForm = {
   name: string; owner: string; email: string; phone: string; city: string;
   address: string; bio: string; currency: string; taxRate: string;
+  portfolioEnabled: boolean; slug: string; logo: ImageRef | null;
 };
 
 const emptyWorkshop: WorkshopForm = {
   name: '', owner: '', email: '', phone: '', city: '',
   address: '', bio: '', currency: 'MXN', taxRate: '16',
+  portfolioEnabled: false, slug: '', logo: null,
 };
+
+function PortfolioLink({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/p/${slug}`;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* el navegador no permite copiar: el enlace sigue visible */ }
+  };
+  return (
+    <div className="flex items-center gap-2 bg-surface border border-border rounded-lg pl-3 pr-1 py-1">
+      <span className="flex-1 text-xs font-mono text-text truncate">{url}</span>
+      <button type="button" onClick={copy} title="Copiar enlace" className="p-1.5 rounded-md text-muted hover:text-text hover:bg-panel">
+        {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+      </button>
+      <a href={url} target="_blank" rel="noopener" title="Abrir" className="p-1.5 rounded-md text-muted hover:text-text hover:bg-panel">
+        <ExternalLink size={14} />
+      </a>
+    </div>
+  );
+}
 
 function WorkshopTab() {
   const [form, setForm] = useState<WorkshopForm>(emptyWorkshop);
@@ -57,6 +85,7 @@ function WorkshopTab() {
         body: JSON.stringify(form),
       });
       setForm(data);
+      updateSessionWorkshop({ name: data.name });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
@@ -84,6 +113,26 @@ function WorkshopTab() {
       <fieldset disabled={!canEdit} className="space-y-6 min-w-0 border-0 p-0 m-0 disabled:opacity-80">
         <div>
           <h3 className="text-sm font-semibold text-text mb-4">Perfil del taller</h3>
+          <div className="mb-5">
+            <ImagePicker
+              label="Logo"
+              variant="logo"
+              hint="Aparece en el menú, en las cotizaciones y en el portafolio. Mejor cuadrado y con fondo transparente (PNG)."
+              image={form.logo}
+              disabled={!canEdit}
+              placeholder={<Wand2 size={22} className="text-muted" />}
+              onSelect={async file => {
+                const data = await apiUpload<WorkshopForm>('/auth/workshop/logo/', await imageForm(file));
+                setForm(f => ({ ...f, logo: data.logo }));
+                updateSessionWorkshop({ logo: data.logo });
+              }}
+              onRemove={async () => {
+                const data = await api<WorkshopForm>('/auth/workshop/logo/', { method: 'DELETE' });
+                setForm(f => ({ ...f, logo: data.logo }));
+                updateSessionWorkshop({ logo: null });
+              }}
+            />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Nombre del taller" value={form.name} onChange={set('name')} required />
             <Input label="Responsable / Propietario" value={form.owner} onChange={set('owner')} required />
@@ -114,6 +163,38 @@ function WorkshopTab() {
             />
             <Input label="Tasa de IVA (%)" type="number" value={form.taxRate} onChange={set('taxRate')} />
           </div>
+        </div>
+        <div className="border-t border-border pt-5">
+          <h3 className="text-sm font-semibold text-text mb-1 flex items-center gap-2">
+            <Globe size={15} className="text-accent" /> Portafolio público
+          </h3>
+          <p className="text-xs text-muted mb-4">
+            Una página sin inicio de sesión para compartir con clientes. Solo muestra los proyectos que marques
+            como <span className="text-text">Públicos</span> y nunca muestra clientes, precios ni fotos de referencia.
+          </p>
+          <label className="flex items-center justify-between gap-4 p-4 bg-panel rounded-xl border border-border cursor-pointer">
+            <div>
+              <p className="text-sm font-medium text-text">Activar portafolio</p>
+              <p className="text-xs text-muted mt-0.5">Se publica al guardar los cambios.</p>
+            </div>
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={form.portfolioEnabled}
+              onChange={e => setForm(f => ({ ...f, portfolioEnabled: e.target.checked }))}
+            />
+            <span
+              aria-hidden
+              className="w-10 h-6 rounded-full bg-border peer-checked:bg-primary transition-colors relative flex-shrink-0
+                after:content-[''] after:absolute after:top-1 after:left-1 after:w-4 after:h-4 after:rounded-full after:bg-white
+                after:transition-transform peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/50"
+            />
+          </label>
+          {form.portfolioEnabled && form.slug && (
+            <div className="mt-3">
+              <PortfolioLink slug={form.slug} />
+            </div>
+          )}
         </div>
       </fieldset>
 

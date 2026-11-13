@@ -7,6 +7,7 @@ from .views import (
     RegisterWorkshopView,
     UserDetailView,
     UserListView,
+    WorkshopLogoView,
     WorkshopView,
 )
 
@@ -15,6 +16,7 @@ urlpatterns = [
     path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('register/', RegisterWorkshopView.as_view(), name='register_workshop'),
     path('workshop/', WorkshopView.as_view()),
+    path('workshop/logo/', WorkshopLogoView.as_view()),
     path('users/', UserListView.as_view()),
     path('users/<int:pk>/', UserDetailView.as_view()),
     path('members/', MemberOptionsView.as_view()),

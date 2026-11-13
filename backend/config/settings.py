@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'apps.projects',
     'apps.dashboard',
     'apps.plataforma',
+    'apps.gallery',
 ]
 
 MIDDLEWARE = [
@@ -133,5 +134,30 @@ STORAGES = {
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+
+# Imágenes (fotos de proyectos, materiales y logo del taller).
+# Con CLOUDINARY_URL (cloudinary://API_KEY:API_SECRET@CLOUD_NAME) se suben a
+# Cloudinary; sin ella se guardan comprimidas en PostgreSQL. Ver apps/gallery/storage.py.
+CLOUDINARY_URL = config('CLOUDINARY_URL', default='')
+IMAGE_STORAGE = 'cloudinary' if CLOUDINARY_URL else 'db'
+
+# Las fotos pueden pesar hasta 10 MB; el resto de peticiones sigue limitado a 2.5 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+
+
+# Errores a la consola: así aparecen en los logs de Render aunque DEBUG esté apagado
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'loggers': {
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
     },
 }

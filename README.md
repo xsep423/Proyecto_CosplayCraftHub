@@ -65,6 +65,30 @@ Actualmente el proyecto se encuentra en desarrollo.
 * [x] Creación de cotizaciones
 * [x] Gestión de usuarios y permisos
 * [x] Multi-tenancy (ver [docs/MULTITENANT.md](docs/MULTITENANT.md))
+* [x] Fotos de proyectos (referencias, avances y resultado final) con portada
+* [x] Foto de cada material del inventario
+* [x] Logo del taller
+* [x] Portafolio público del taller (`/p/<slug>`)
+* [x] Cotizaciones en PDF (versión imprimible)
+* [x] Calendario de entregas
+
+## Imágenes
+
+Las imágenes se procesan en el servidor: se corrige la orientación, se eliminan
+los metadatos EXIF (ubicación GPS, etc.), se reducen a 1600 px y se guardan en
+WebP junto con una miniatura.
+
+Dónde se guardan depende de `CLOUDINARY_URL`:
+
+* **Con** `CLOUDINARY_URL` → se suben a [Cloudinary](https://cloudinary.com) (recomendado en producción).
+* **Sin** ella → se guardan en PostgreSQL.
+
+Nunca se usa el disco del servidor, porque en Render gratis se borra en cada deploy.
+Cada imagen recuerda dónde se guardó, así que se puede activar Cloudinary después
+sin romper las imágenes anteriores.
+
+El portafolio público solo muestra los proyectos marcados como públicos, nunca
+muestra clientes, precios ni costos, y no incluye las fotos marcadas como "referencia".
 
 ## Instalación
 
@@ -130,6 +154,9 @@ DB_HOST=localhost
 DB_PORT=5432
 
 ALLOWED_HOSTS=127.0.0.1,localhost
+
+# Opcional: guardar imágenes en Cloudinary en vez de PostgreSQL
+CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
 ```
 
 No se deben subir archivos `.env` al repositorio.

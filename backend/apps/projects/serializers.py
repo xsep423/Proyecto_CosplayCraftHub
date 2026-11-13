@@ -7,7 +7,30 @@ from apps.clientes.models import Cliente
 from apps.inventory.models import Material
 from apps.users.tenancy import TenantPrimaryKeyRelatedField
 
-from .models import Project, ProjectMaterial, Task
+from apps.gallery.models import StoredImage, image_payload
+
+from .models import Project, ProjectMaterial, ProjectPhoto, Task, pick_cover
+
+LIGHT_IMAGE = [f'image__{f}' for f in StoredImage.HEAVY_FIELDS]
+
+
+def photos_queryset():
+    """Fotos con su imagen pero sin cargar los bytes."""
+    return ProjectPhoto.objects.select_related('image').defer(*LIGHT_IMAGE)
+
+
+def photos_prefetch():
+    """Para prefetch_related(): evita N+1 y no trae los bytes de las imágenes."""
+    from django.db.models import Prefetch
+    return Prefetch('photos', queryset=photos_queryset())
+
+
+def project_photos(project):
+    # Usa el prefetch si existe; si no, una consulta ligera
+    cache = getattr(project, '_prefetched_objects_cache', {})
+    if 'photos' in cache:
+        return list(project.photos.all())
+    return list(photos_queryset().filter(project=project))
 
 
 def user_label(user):
@@ -45,6 +68,9 @@ class ProjectSerializer(serializers.ModelSerializer):
     )
     tags = serializers.ListField(child=serializers.CharField(max_length=40), required=False)
     progress = serializers.IntegerField(read_only=True)
+    isPublic = serializers.BooleanField(source='is_public', required=False)
+    cover = serializers.SerializerMethodField()
+    photoCount = serializers.SerializerMethodField()
     materialsCost = serializers.SerializerMethodField()
     spent = serializers.SerializerMethodField()
     taskCount = serializers.SerializerMethodField()
@@ -58,7 +84,15 @@ class ProjectSerializer(serializers.ModelSerializer):
             'responsibleId', 'responsible', 'status', 'priority',
             'startDate', 'dueDate', 'progress', 'budget', 'laborCost', 'otherCost',
             'materialsCost', 'spent', 'tags', 'taskCount', 'doneTasks', 'createdAt',
+            'isPublic', 'cover', 'photoCount',
         ]
+
+    def get_cover(self, obj):
+        cover = pick_cover(project_photos(obj))
+        return image_payload(cover.image) if cover else None
+
+    def get_photoCount(self, obj):
+        return len(project_photos(obj))
 
     def get_clientName(self, obj):
         return str(obj.client)
@@ -147,3 +181,26 @@ class ProjectMaterialSerializer(serializers.ModelSerializer):
 
     def get_subtotal(self, obj):
         return money(obj.subtotal)
+
+
+class ProjectPhotoSerializer(serializers.ModelSerializer):
+    projectId = TenantPrimaryKeyRelatedField(source='project', queryset=Project.objects.all())
+    isCover = serializers.BooleanField(source='is_cover', required=False)
+    image = serializers.SerializerMethodField()
+    uploadedBy = serializers.SerializerMethodField()
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+
+    class Meta:
+        model = ProjectPhoto
+        fields = ['id', 'projectId', 'caption', 'stage', 'isCover', 'image', 'uploadedBy', 'createdAt']
+
+    def get_image(self, obj):
+        return image_payload(obj.image)
+
+    def get_uploadedBy(self, obj):
+        return user_label(obj.uploaded_by)
+
+    def validate_projectId(self, value):
+        if self.instance is not None and value.pk != self.instance.project_id:
+            raise serializers.ValidationError('No se puede mover una foto a otro proyecto.')
+        return value

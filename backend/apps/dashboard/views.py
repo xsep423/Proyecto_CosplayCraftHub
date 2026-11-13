@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from apps.clientes.models import Cliente
 from apps.inventory.models import Material
 from apps.projects.models import Project
-from apps.projects.serializers import ProjectSerializer
+from apps.projects.serializers import ProjectSerializer, photos_prefetch
 from apps.quotes.models import Quote
 from apps.users.tenancy import get_workshop
 
@@ -34,7 +34,7 @@ class DashboardSummaryView(APIView):
         projects = list(
             Project.objects.filter(workshop=workshop)
             .select_related('client', 'responsible')
-            .prefetch_related('tasks', 'project_materials')
+            .prefetch_related('tasks', 'project_materials', photos_prefetch())
         )
         clients = Cliente.objects.filter(workshop=workshop)
         materials = list(Material.objects.filter(workshop=workshop))

@@ -54,3 +54,40 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (res.status === 204) return undefined as T;
   return res.json();
 }
+
+/** Origen del backend (sin /api), para armar URLs de imágenes guardadas en la base. */
+const API_ORIGIN = new URL(API_URL, window.location.href).origin;
+
+/**
+ * URL lista para <img>. Las imágenes en Cloudinary ya vienen absolutas; las que
+ * viven en la base llegan como /api/media/<id>/ y se sirven desde el backend.
+ */
+export function mediaUrl(path: string | null | undefined): string {
+  if (!path) return '';
+  return /^(https?:|blob:|data:)/.test(path) ? path : `${API_ORIGIN}${path}`;
+}
+
+/** Sube archivos (multipart). No fija Content-Type: el navegador agrega el boundary. */
+export async function apiUpload<T>(path: string, form: FormData, method: 'POST' | 'PATCH' = 'POST'): Promise<T> {
+  const token = localStorage.getItem('access_token');
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    body: form,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (res.status === 401) {
+    logout();
+    window.location.href = '/login';
+    throw new Error('Sesión expirada');
+  }
+  if (res.status === 413) throw { file: ['La imagen es demasiado grande.'] };
+  if (!res.ok) throw await res.json().catch(() => ({ detail: 'No se pudo subir el archivo.' }));
+  return res.json();
+}
+
+/** Petición sin sesión (páginas públicas). */
+export async function publicApi<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`);
+  if (!res.ok) throw { status: res.status };
+  return res.json();
+}

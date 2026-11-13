@@ -31,4 +31,6 @@ urlpatterns = [
     path('api/projects/', include('apps.projects.urls')),
     path('api/dashboard/', include('apps.dashboard.urls')),
     path('api/platform/', include('apps.plataforma.urls')),
+    path('api/media/', include('apps.gallery.urls')),
+    path('api/public/', include('apps.gallery.public_urls')),
 ]

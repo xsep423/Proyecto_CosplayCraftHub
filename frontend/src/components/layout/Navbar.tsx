@@ -5,6 +5,7 @@ const routeTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/projects': 'Proyectos',
   '/projects/new': 'Nuevo Proyecto',
+  '/calendar': 'Calendario de entregas',
   '/clients': 'Clientes',
   '/inventory': 'Inventario',
   '/quotes': 'Cotizaciones',

@@ -25,6 +25,9 @@ class Material(models.Model):
     min_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     supplier = models.CharField(max_length=150, blank=True)
     location = models.CharField(max_length=100, blank=True)
+    image = models.ForeignKey(
+        'gallery.StoredImage', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

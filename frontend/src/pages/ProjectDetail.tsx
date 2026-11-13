@@ -3,13 +3,16 @@ import { useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft, Edit2, Plus, GripVertical, Trash2,
   ClipboardList, ListTodo, Package, DollarSign, FileText, Calendar, User,
+  Camera, Globe, Lock, Printer,
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Tabs from '../components/ui/Tabs';
 import Modal from '../components/ui/Modal';
 import { Input, Select, Textarea } from '../components/ui/Input';
-import { api } from '../services/api';
+import PhotoGallery from '../components/media/PhotoGallery';
+import Lightbox from '../components/media/Lightbox';
+import { api, mediaUrl } from '../services/api';
 import { getRole } from '../lib/auth';
 import {
   statusLabel, statusVariant, priorityLabel, priorityVariant, taskStatusLabel,
@@ -161,6 +164,9 @@ export default function ProjectDetail() {
   const [materialForm, setMaterialForm] = useState({ materialId: '', quantity: '' });
   const [materialError, setMaterialError] = useState('');
   const [savingMaterial, setSavingMaterial] = useState(false);
+
+  // Portada a pantalla completa
+  const [coverOpen, setCoverOpen] = useState<number | null>(null);
 
   // Eliminar proyecto
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -334,6 +340,17 @@ export default function ProjectDetail() {
     }
   };
 
+  const togglePublic = async () => {
+    setActionError('');
+    try {
+      setProject(await api<Project>(`/projects/${id}/`, {
+        method: 'PATCH', body: JSON.stringify({ isPublic: !project?.isPublic }),
+      }));
+    } catch (err) {
+      setActionError(apiErrorMessage(err, 'No se pudo cambiar la visibilidad.'));
+    }
+  };
+
   const deleteProject = async () => {
     setDeleting(true);
     try {
@@ -367,6 +384,7 @@ export default function ProjectDetail() {
 
   const tabs = [
     { id: 'summary', label: 'Resumen', icon: <ClipboardList size={14} /> },
+    { id: 'photos', label: 'Fotos', icon: <Camera size={14} />, badge: project.photoCount },
     { id: 'tasks', label: 'Tareas', icon: <ListTodo size={14} />, badge: tasks.length },
     { id: 'materials', label: 'Materiales', icon: <Package size={14} />, badge: usedMaterials.length },
     { id: 'costs', label: 'Costos', icon: <DollarSign size={14} /> },
@@ -389,11 +407,21 @@ export default function ProjectDetail() {
         >
           <ArrowLeft size={18} />
         </button>
+        {project.cover && (
+          <button
+            onClick={() => setCoverOpen(0)}
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border border-border flex-shrink-0"
+            aria-label="Ver portada"
+          >
+            <img src={mediaUrl(project.cover.thumbUrl)} alt="" className="w-full h-full object-cover" />
+          </button>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap mb-1">
             <h2 className="text-xl font-bold text-text">{project.name}</h2>
             <Badge variant={statusVariant[project.status]} dot>{statusLabel[project.status]}</Badge>
             <Badge variant={priorityVariant[project.priority]}>{priorityLabel[project.priority]}</Badge>
+            {project.isPublic && <Badge variant="accent"><Globe size={11} /> En portafolio</Badge>}
           </div>
           <p className="text-sm text-muted">
             {project.clientName}{project.responsible && ` · ${project.responsible}`}
@@ -408,6 +436,17 @@ export default function ProjectDetail() {
             >
               {Object.entries(statusLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={project.isPublic ? <Globe size={14} /> : <Lock size={14} />}
+              onClick={togglePublic}
+              title={project.isPublic
+                ? 'Visible en el portafolio público. Clic para ocultarlo.'
+                : 'Privado. Clic para mostrarlo en el portafolio público del taller.'}
+            >
+              <span className="hidden sm:inline">{project.isPublic ? 'Público' : 'Privado'}</span>
+            </Button>
             <Button variant="secondary" size="sm" icon={<Edit2 size={14} />} onClick={() => navigate(`/projects/${id}/edit`)}>
               Editar
             </Button>
@@ -487,6 +526,10 @@ export default function ProjectDetail() {
                   ))}
                 </div>
               </div>
+            );
+
+            if (active === 'photos') return (
+              <PhotoGallery projectId={project.id} canEdit={canEdit} onChange={reloadProject} />
             );
 
             if (active === 'tasks') return (
@@ -629,20 +672,30 @@ export default function ProjectDetail() {
                 ) : (
                   <div className="divide-y divide-border border border-border rounded-xl overflow-hidden">
                     {quotes.map(q => (
-                      <button
-                        key={q.id}
-                        onClick={() => navigate('/quotes')}
-                        className="w-full flex items-center justify-between px-5 py-4 hover:bg-panel/50 transition-colors text-left"
-                      >
-                        <div>
-                          <p className="text-sm font-mono font-semibold text-text">{q.number}</p>
-                          <p className="text-xs text-muted">{formatDate(q.createdAt)}</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <Badge variant={quoteStatusVariant[q.status]} dot>{quoteStatusLabel[q.status]}</Badge>
-                          <span className="text-sm font-mono font-bold text-primary">{money(q.total)}</span>
-                        </div>
-                      </button>
+                      <div key={q.id} className="flex items-center hover:bg-panel/50 transition-colors">
+                        <button
+                          onClick={() => navigate('/quotes')}
+                          className="flex-1 flex items-center justify-between px-5 py-4 text-left min-w-0"
+                        >
+                          <div>
+                            <p className="text-sm font-mono font-semibold text-text">{q.number}</p>
+                            <p className="text-xs text-muted">{formatDate(q.createdAt)}</p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <Badge variant={quoteStatusVariant[q.status]} dot>{quoteStatusLabel[q.status]}</Badge>
+                            <span className="text-sm font-mono font-bold text-primary">{money(q.total)}</span>
+                          </div>
+                        </button>
+                        <a
+                          href={`/quotes/${q.id}/print`}
+                          target="_blank"
+                          rel="noopener"
+                          title="Ver / descargar PDF"
+                          className="p-2 mr-3 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          <Printer size={15} />
+                        </a>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -653,6 +706,14 @@ export default function ProjectDetail() {
           }}
         </Tabs>
       </div>
+
+      {project.cover && (
+        <Lightbox
+          items={[{ url: project.cover.url, caption: project.name }]}
+          index={coverOpen}
+          onChange={setCoverOpen}
+        />
+      )}
 
       {/* Modal: tarea */}
       <Modal

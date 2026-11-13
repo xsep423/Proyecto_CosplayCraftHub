@@ -8,6 +8,8 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.gallery.models import image_payload, light_image
+
 from .models import Profile, Workshop, get_profile
 
 
@@ -63,7 +65,12 @@ def build_session(user):
             'role': role,
         },
         'workshop': (
-            {'id': workshop.id, 'name': workshop.name, 'slug': workshop.slug}
+            {
+                'id': workshop.id,
+                'name': workshop.name,
+                'slug': workshop.slug,
+                'logo': image_payload(light_image(workshop.logo_id)),
+            }
             if workshop else None
         ),
     }
@@ -211,10 +218,19 @@ class CreateMemberSerializer(serializers.Serializer):
 class WorkshopSerializer(serializers.ModelSerializer):
     # El frontend usa "taxRate"; en la base se guarda como tax_rate
     taxRate = serializers.DecimalField(source='tax_rate', max_digits=5, decimal_places=2)
+    portfolioEnabled = serializers.BooleanField(source='portfolio_enabled', required=False)
+    logo = serializers.SerializerMethodField()
 
     class Meta:
         model = Workshop
-        fields = ['name', 'owner', 'email', 'phone', 'city', 'address', 'bio', 'currency', 'taxRate']
+        fields = [
+            'id', 'name', 'slug', 'owner', 'email', 'phone', 'city', 'address', 'bio',
+            'currency', 'taxRate', 'portfolioEnabled', 'logo',
+        ]
+        read_only_fields = ['id', 'slug']
+
+    def get_logo(self, obj):
+        return image_payload(light_image(obj.logo_id))
 
     def validate_name(self, value):
         value = clean_spaces(value)

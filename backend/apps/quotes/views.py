@@ -4,7 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.clientes.models import Cliente  
+from apps.clientes.models import Cliente
+from apps.gallery.models import image_payload, light_image
 
 from apps.users.tenancy import TenantScopedMixin, get_workshop
 
@@ -51,6 +52,29 @@ class QuoteViewSet(TenantScopedMixin, viewsets.ModelViewSet):
         quote.status = new_status
         quote.save(update_fields=['status', 'updated_at'])
         return Response(self.get_serializer(quote).data)
+
+
+    @action(detail=True, methods=['get'], url_path='document')
+    def document(self, request, pk=None):
+        """Todo lo que necesita la versión imprimible / PDF de la cotización."""
+        quote = self.get_object()
+        w = self.workshop
+        c = quote.client
+        return Response({
+            'quote': self.get_serializer(quote).data,
+            'workshop': {
+                'name': w.name, 'owner': w.owner, 'email': w.email, 'phone': w.phone,
+                'city': w.city, 'address': w.address, 'currency': w.currency,
+                'logo': image_payload(light_image(w.logo_id)),
+            },
+            'client': {
+                'name': ' '.join(filter(None, [c.nombre, c.apellidos])),
+                'email': c.correo,
+                'phone': c.telefono or '',
+                'city': c.ciudad or '',
+                'address': c.direccion or '',
+            },
+        })
 
 
 class ClientOptionsView(APIView):

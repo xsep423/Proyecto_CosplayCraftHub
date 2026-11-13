@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.gallery.models import image_payload
+
 from .models import Material, StockMovement
 
 
@@ -13,13 +15,17 @@ class MaterialSerializer(serializers.ModelSerializer):
         source='min_stock', max_digits=10, decimal_places=2, min_value=0, coerce_to_string=False
     )
     stock = serializers.CharField(read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Material
         fields = [
             'id', 'name', 'category', 'quantity', 'unit',
-            'unitCost', 'minStock', 'supplier', 'location', 'stock',
+            'unitCost', 'minStock', 'supplier', 'location', 'stock', 'image',
         ]
+
+    def get_image(self, obj):
+        return image_payload(obj.image)
 
     def create(self, validated_data):
         material = super().create(validated_data)

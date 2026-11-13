@@ -42,6 +42,8 @@ class Project(models.Model):
     labor_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     other_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tags = models.JSONField(default=list, blank=True)
+    # Se muestra en el portafolio público del taller (si el taller lo tiene activo)
+    is_public = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -125,3 +127,50 @@ class ProjectMaterial(models.Model):
 
     def __str__(self):
         return f'{self.material.name} × {self.quantity}'
+
+
+class ProjectPhoto(models.Model):
+    """Foto de un proyecto: referencia, avance o resultado final."""
+
+    class Stage(models.TextChoices):
+        REFERENCE = 'reference', 'Referencia'
+        PROGRESS = 'progress', 'Avance'
+        FINAL = 'final', 'Resultado final'
+
+    MAX_PER_PROJECT = 40
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='photos')
+    image = models.OneToOneField(
+        'gallery.StoredImage', on_delete=models.CASCADE, related_name='project_photo'
+    )
+    caption = models.CharField(max_length=200, blank=True)
+    stage = models.CharField(max_length=10, choices=Stage.choices, default=Stage.PROGRESS)
+    is_cover = models.BooleanField(default=False)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name='+'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        constraints = [
+            # Un proyecto tiene como máximo una portada
+            models.UniqueConstraint(
+                fields=['project'], condition=models.Q(is_cover=True), name='una_portada_por_proyecto',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.project.name} · {self.get_stage_display()}'
+
+
+def pick_cover(photos):
+    """Portada de un proyecto: la marcada, si no la primera final, si no la primera."""
+    photos = list(photos)
+    for p in photos:
+        if p.is_cover:
+            return p
+    for p in photos:
+        if p.stage == ProjectPhoto.Stage.FINAL:
+            return p
+    return photos[0] if photos else None

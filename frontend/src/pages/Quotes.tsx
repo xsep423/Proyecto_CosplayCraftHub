@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Plus, Search, FileText, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
@@ -245,9 +245,16 @@ export default function Quotes() {
                     <p className="text-xs text-muted italic mt-2 border-t border-border pt-2">{q.notes}</p>
                   )}
 
-                  {canEdit && options.length > 0 && (
-                    <div className="flex flex-wrap justify-end gap-2 mt-4 border-t border-border pt-4">
-                      {options.map(s => (
+                  <div className="flex flex-wrap justify-end gap-2 mt-4 border-t border-border pt-4">
+                    <a
+                      href={`/quotes/${q.id}/print`}
+                      target="_blank"
+                      rel="noopener"
+                      className="mr-auto inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      <Printer size={13} /> Ver / descargar PDF
+                    </a>
+                    {canEdit && options.map(s => (
                         <button
                           key={s}
                           onClick={() => changeStatus(q, s)}
@@ -256,8 +263,7 @@ export default function Quotes() {
                           {s === 'draft' ? 'Volver a borrador' : `Marcar como ${statusLabel[s].toLowerCase()}`}
                         </button>
                       ))}
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
             </div>

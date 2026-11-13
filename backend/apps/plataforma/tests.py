@@ -4,6 +4,7 @@ Pruebas de la consola de plataforma (super admin).
     python manage.py test apps.plataforma
 """
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.management import call_command
 from rest_framework.test import APITestCase
 
@@ -21,6 +22,9 @@ class PlatformConsoleTests(APITestCase):
         cls.forja = Workshop.objects.get(slug='forja-cosplay')
         cls.hilo = Workshop.objects.get(slug='hilo-espuma')
         User.objects.create_superuser('superadmin', SUPER_EMAIL, SUPER_PASSWORD)
+
+    def setUp(self):
+        cache.clear()  # reinicia el límite de intentos de login entre pruebas
 
     def login(self, email, password=DEMO_PASSWORD):
         res = self.client.post('/api/auth/login/', {'email': email, 'password': password}, format='json')

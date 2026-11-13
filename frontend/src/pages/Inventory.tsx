@@ -4,8 +4,11 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import { Input, Select } from '../components/ui/Input';
-import type { Material, StockStatus } from '../types';
-import { api } from '../services/api';
+import ImagePicker from '../components/media/ImagePicker';
+import Lightbox from '../components/media/Lightbox';
+import type { ImageRef, Material, StockStatus } from '../types';
+import { api, apiUpload, mediaUrl } from '../services/api';
+import { imageForm } from '../lib/images';
 import { getRole } from '../lib/auth';
 
 const stockVariant: Record<StockStatus, 'success' | 'warning' | 'danger' | 'muted'> = {
@@ -41,6 +44,9 @@ export default function Inventory() {
   const [deleteTarget, setDeleteTarget] = useState<Material | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  // Foto elegida al crear un material: se sube en cuanto el material existe
+  const [pendingImage, setPendingImage] = useState<{ file: File; preview: string } | null>(null);
+  const [viewer, setViewer] = useState<Material | null>(null);
 
   const role = getRole();
   const canEdit = role !== 'viewer';
@@ -63,7 +69,33 @@ export default function Inventory() {
     return matchSearch && matchCat && matchStock;
   });
 
+  const clearPending = () => {
+    setPendingImage(p => {
+      if (p) URL.revokeObjectURL(p.preview);
+      return null;
+    });
+  };
+
+  const replaceMaterial = (updated: Material) => {
+    setMaterials(ms => ms.map(m => (m.id === updated.id ? updated : m)));
+    setEditMaterial(cur => (cur && cur.id === updated.id ? updated : cur));
+  };
+
+  const uploadImage = async (material: Material, file: File) => {
+    replaceMaterial(await apiUpload<Material>(`/inventory/materials/${material.id}/image/`, await imageForm(file)));
+  };
+
+  const removeImage = async (material: Material) => {
+    replaceMaterial(await api<Material>(`/inventory/materials/${material.id}/image/`, { method: 'DELETE' }));
+  };
+
+  const closeForm = () => {
+    setModalOpen(false);
+    clearPending();
+  };
+
   const openCreate = () => {
+    clearPending();
     setEditMaterial(null);
     setForm(emptyForm);
     setFormError('');
@@ -119,6 +151,18 @@ export default function Inventory() {
           body: JSON.stringify(payload),
         });
         setMaterials(ms => [created, ...ms]);
+        if (pendingImage) {
+          try {
+            await uploadImage(created, pendingImage.file);
+          } catch {
+            // El material ya se creó: se deja abierto en modo edición para reintentar la foto
+            setEditMaterial(created);
+            setFormError('El material se creó, pero la foto no se pudo subir. Intenta de nuevo.');
+            clearPending();
+            return;
+          }
+          clearPending();
+        }
       }
       setModalOpen(false);
     } catch {
@@ -230,9 +274,19 @@ export default function Inventory() {
                 <tr key={m.id} className="hover:bg-panel/50 transition-colors group">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-panel flex items-center justify-center flex-shrink-0">
-                        <Package size={14} className="text-muted" />
-                      </div>
+                      {m.image ? (
+                        <button
+                          onClick={() => setViewer(m)}
+                          className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-border hover:border-primary/50 transition-colors"
+                          aria-label={`Ver foto de ${m.name}`}
+                        >
+                          <img src={mediaUrl(m.image.thumbUrl)} alt="" loading="lazy" className="w-full h-full object-cover" />
+                        </button>
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-panel flex items-center justify-center flex-shrink-0">
+                          <Package size={14} className="text-muted" />
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm font-medium text-text">{m.name}</p>
                         {m.location && <p className="text-xs text-muted">{m.location}</p>}
@@ -296,11 +350,11 @@ export default function Inventory() {
       {/* Create/Edit Modal */}
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeForm}
         title={editMaterial ? 'Editar Material' : 'Nuevo Material'}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button variant="secondary" onClick={closeForm}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? 'Guardando...' : editMaterial ? 'Guardar' : 'Crear'}
             </Button>
@@ -308,6 +362,28 @@ export default function Inventory() {
         }
       >
         <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            {editMaterial ? (
+              <ImagePicker
+                label="Foto"
+                hint="Ayuda a reconocer el material en el almacén."
+                image={editMaterial.image}
+                onSelect={file => uploadImage(editMaterial, file)}
+                onRemove={() => removeImage(editMaterial)}
+              />
+            ) : (
+              <ImagePicker
+                label="Foto (opcional)"
+                hint="Se sube al crear el material."
+                image={pendingImage ? { id: 'pending', url: pendingImage.preview, thumbUrl: pendingImage.preview, width: 0, height: 0 } as ImageRef : null}
+                onSelect={async file => {
+                  clearPending();
+                  setPendingImage({ file, preview: URL.createObjectURL(file) });
+                }}
+                onRemove={async () => clearPending()}
+              />
+            )}
+          </div>
           <Input label="Nombre" value={form.name} onChange={set('name')} placeholder="Nombre del material" required className="col-span-2" />
           <Select
             label="Categoría"
@@ -326,6 +402,12 @@ export default function Inventory() {
           {formError && <p className="col-span-2 text-xs text-red-400">{formError}</p>}
         </div>
       </Modal>
+
+      <Lightbox
+        items={viewer?.image ? [{ url: viewer.image.url, caption: viewer.name, meta: viewer.category }] : []}
+        index={viewer ? 0 : null}
+        onChange={i => { if (i === null) setViewer(null); }}
+      />
 
       {/* Adjust Modal */}
       <Modal

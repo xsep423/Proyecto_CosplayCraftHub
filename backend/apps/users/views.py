@@ -1,9 +1,12 @@
 from django.contrib.auth.models import User
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
+
+from apps.gallery.storage import save_upload
 
 from .models import Profile, get_role
 from .permissions import IsAdminRole
@@ -54,6 +57,27 @@ class WorkshopView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class WorkshopLogoView(APIView):
+    """POST (multipart, campo 'file') cambia el logo del taller; DELETE lo quita. Solo admin."""
+    permission_classes = [IsAdminRole]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        return self._set(request, save_upload(get_workshop(request.user), request.FILES.get('file'), folder='logo'))
+
+    def delete(self, request):
+        return self._set(request, None)
+
+    def _set(self, request, image):
+        workshop = get_workshop(request.user)
+        old = workshop.logo
+        workshop.logo = image
+        workshop.save(update_fields=['logo'])
+        if old is not None:
+            old.delete()
+        return Response(WorkshopSerializer(workshop).data)
 
 
 def serialize_user(u):

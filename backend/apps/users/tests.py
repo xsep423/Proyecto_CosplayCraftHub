@@ -3,6 +3,7 @@ Pruebas de aislamiento multi-tenant.
 
     python manage.py test apps.users
 """
+from django.core.cache import cache
 from django.core.management import call_command
 from rest_framework.test import APITestCase
 
@@ -21,6 +22,9 @@ class MultiTenantTests(APITestCase):
         call_command('seed_demo', stdout=open('/dev/null', 'w'))
         cls.forja = Workshop.objects.get(slug='forja-cosplay')
         cls.hilo = Workshop.objects.get(slug='hilo-espuma')
+
+    def setUp(self):
+        cache.clear()  # reinicia el límite de intentos de login entre pruebas
 
     def login(self, email):
         res = self.client.post('/api/auth/login/', {'email': email, 'password': PASSWORD}, format='json')
