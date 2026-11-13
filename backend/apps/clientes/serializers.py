@@ -32,11 +32,15 @@ class ClienteSerializer(serializers.ModelSerializer):
         return value
 
     def get_projects(self, obj):
-        return obj.projects.count()
+        # La vista lo anota; al crear o editar un cliente se cuenta aparte
+        count = getattr(obj, 'project_count', None)
+        return obj.projects.count() if count is None else count
 
     def get_totalSpent(self, obj):
         # Lo que el cliente ha aprobado o pagado en cotizaciones
-        quotes = obj.quotes.filter(status__in=['approved', 'invoiced']).prefetch_related('items')
+        quotes = getattr(obj, 'won_quotes', None)
+        if quotes is None:
+            quotes = obj.quotes.filter(status__in=['approved', 'invoiced']).prefetch_related('items')
         return float(sum((q.total for q in quotes), 0))
 
     def to_representation(self, instance):
