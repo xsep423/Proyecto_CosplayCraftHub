@@ -33,4 +33,5 @@ urlpatterns = [
     path('api/platform/', include('apps.plataforma.urls')),
     path('api/media/', include('apps.gallery.urls')),
     path('api/public/', include('apps.gallery.public_urls')),
+    path('api/export/', include('apps.exports.urls')),
 ]

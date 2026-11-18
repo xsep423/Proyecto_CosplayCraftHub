@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Plus, Search, FileText, Trash2, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import Button from '../components/ui/Button';
+import ExportMenu from '../components/data/ExportMenu';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import { Input, Select } from '../components/ui/Input';
@@ -180,6 +181,7 @@ export default function Quotes() {
               <option key={v} value={v} className="bg-surface">{l}</option>
             ))}
           </select>
+          <ExportMenu resource="cotizaciones" />
           {canEdit && (
             <Button onClick={openCreate} icon={<Plus size={16} />}>Nueva Cotización</Button>
           )}

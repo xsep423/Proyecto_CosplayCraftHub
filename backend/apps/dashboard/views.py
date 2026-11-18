@@ -13,9 +13,9 @@ from apps.projects.serializers import ProjectSerializer, photos_prefetch
 from apps.quotes.models import Quote
 from apps.users.tenancy import get_workshop
 
+from .alerts import OPEN_STATUSES, build_alerts, workshop_alerts
+
 ACTIVE_STATUSES = ('in_progress', 'review')
-OPEN_STATUSES = ('planning', 'in_progress', 'review', 'on_hold')
-STALE_QUOTE_DAYS = 7
 
 
 def money(value):
@@ -53,40 +53,7 @@ class DashboardSummaryView(APIView):
         upcoming = sorted(open_projects, key=lambda p: p.due_date)[:5]
         in_progress = [p for p in projects if p.status == 'in_progress'][:4]
 
-        # ---- Alertas ----
-        alerts = []
-        severity = {'out': 0, 'critical': 1, 'low': 2}
-        for m in sorted(stock_alerts, key=lambda m: severity[m.stock]):
-            label = {'out': 'sin existencias', 'critical': 'stock crítico', 'low': 'stock bajo'}[m.stock]
-            detail = '' if m.stock == 'out' else f' ({m.quantity.normalize():f} {m.unit})'
-            alerts.append({
-                'type': 'danger' if m.stock in ('out', 'critical') else 'warning',
-                'kind': 'stock',
-                'text': f'{m.name}: {label}{detail}',
-                'link': '/inventory',
-            })
-        for p in sorted(open_projects, key=lambda p: p.due_date):
-            days = (p.due_date - today).days
-            if days < 0:
-                alerts.append({
-                    'type': 'danger', 'kind': 'project',
-                    'text': f'{p.name}: entrega vencida hace {-days} día{"s" if -days != 1 else ""}',
-                    'link': f'/projects/{p.id}',
-                })
-            elif days <= 7:
-                alerts.append({
-                    'type': 'warning', 'kind': 'project',
-                    'text': f'{p.name}: entrega en {days} día{"s" if days != 1 else ""}',
-                    'link': f'/projects/{p.id}',
-                })
-        for q in sent_quotes:
-            age = (today - timezone.localtime(q.updated_at).date()).days
-            if age >= STALE_QUOTE_DAYS:
-                alerts.append({
-                    'type': 'info', 'kind': 'quote',
-                    'text': f'Cotización {q.number} enviada hace {age} días, sin respuesta',
-                    'link': '/quotes',
-                })
+        alerts = build_alerts(projects, materials, quotes, today)
 
         status_counts = {s: 0 for s, _ in Project.Status.choices}
         for p in projects:
@@ -110,3 +77,11 @@ class DashboardSummaryView(APIView):
             'inProgress': ProjectSerializer(in_progress, many=True, context=ctx).data,
             'alerts': alerts[:8],
         })
+
+
+class NotificationsView(APIView):
+    """Todas las alertas vigentes del taller, para la campana de notificaciones."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(workshop_alerts(get_workshop(request.user)))

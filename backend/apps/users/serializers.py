@@ -242,3 +242,43 @@ class WorkshopSerializer(serializers.ModelSerializer):
         if qs.exists():
             raise serializers.ValidationError('Ya existe un taller con ese nombre.')
         return value
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Valida el enlace del correo (uid + token) y la nueva contraseña."""
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    INVALID_LINK = 'El enlace no es válido o ya caducó. Solicita uno nuevo.'
+
+    def validate(self, attrs):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_str
+        from django.utils.http import urlsafe_base64_decode
+
+        try:
+            pk = force_str(urlsafe_base64_decode(attrs['uid']))
+            user = User.objects.get(pk=pk, is_active=True)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            raise serializers.ValidationError(self.INVALID_LINK)
+
+        if not default_token_generator.check_token(user, attrs['token']):
+            raise serializers.ValidationError(self.INVALID_LINK)
+
+        check_password_strength(attrs['password'], user.email, user.first_name)
+        attrs['user'] = user
+        return attrs
+
+    def save(self):
+        user = self.validated_data['user']
+        user.set_password(self.validated_data['password'])
+        user.save(update_fields=['password'])
+        return user

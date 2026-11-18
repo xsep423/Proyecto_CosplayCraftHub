@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Search, ChevronRight, LayoutGrid, List, Camera, Globe } from 'lucide-react';
 import Button from '../components/ui/Button';
+import ExportMenu from '../components/data/ExportMenu';
 import Badge from '../components/ui/Badge';
 import { api, mediaUrl } from '../services/api';
 import { getRole } from '../lib/auth';
@@ -56,7 +57,7 @@ export default function Projects() {
             className="w-full bg-surface border border-border rounded-lg pl-9 pr-4 py-2 text-sm text-text placeholder-muted outline-none focus:border-primary transition-colors"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value as ProjectStatus | '')}
@@ -90,6 +91,7 @@ export default function Projects() {
               </button>
             ))}
           </div>
+          <ExportMenu resource="proyectos" />
           {canCreate && (
             <Button onClick={() => navigate('/projects/new')} icon={<Plus size={16} />}>
               Nuevo

@@ -1,5 +1,8 @@
 import { useLocation } from 'react-router';
-import { Menu, Bell, Search } from 'lucide-react';
+import { Menu, Search } from 'lucide-react';
+import NotificationBell from './NotificationBell';
+import ThemeToggle from './ThemeToggle';
+import InstallAppButton from './InstallAppButton';
 
 const routeTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -35,16 +38,15 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
         <Menu size={20} />
       </button>
 
-      <h1 className="text-base font-semibold text-text flex-1">{getTitle()}</h1>
+      <h1 className="text-base font-semibold text-text flex-1 truncate">{getTitle()}</h1>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <button className="p-2 rounded-lg hover:bg-panel text-muted hover:text-text transition-colors hidden sm:flex">
           <Search size={18} />
         </button>
-        <button className="relative p-2 rounded-lg hover:bg-panel text-muted hover:text-text transition-colors">
-          <Bell size={18} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full" />
-        </button>
+        <InstallAppButton />
+        <ThemeToggle />
+        <NotificationBell />
       </div>
     </header>
   );

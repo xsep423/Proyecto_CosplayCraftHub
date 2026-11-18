@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Search, AlertTriangle, Package } from 'lucide-react';
 import Button from '../components/ui/Button';
+import ExportMenu from '../components/data/ExportMenu';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import { Input, Select } from '../components/ui/Input';
@@ -252,6 +253,7 @@ export default function Inventory() {
             <option value="critical" className="bg-surface">Crítico</option>
             <option value="out" className="bg-surface">Sin stock</option>
           </select>
+          <ExportMenu resource="inventario" />
           {canEdit && (
             <Button onClick={openCreate} icon={<Plus size={16} />}>Nuevo Material</Button>
           )}

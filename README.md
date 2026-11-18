@@ -71,6 +71,47 @@ Actualmente el proyecto se encuentra en desarrollo.
 * [x] Portafolio público del taller (`/p/<slug>`)
 * [x] Cotizaciones en PDF (versión imprimible)
 * [x] Calendario de entregas
+* [x] Recuperación de contraseña por correo
+* [x] Exportar clientes, inventario, proyectos y cotizaciones a Excel o CSV
+* [x] Notificaciones (stock bajo, entregas próximas o vencidas, cotizaciones sin respuesta)
+* [x] Tema claro y oscuro
+* [x] App instalable en celular y computadora (PWA)
+* [x] Pruebas automáticas e integración continua (GitHub Actions)
+
+## Funciones extra
+
+### Recuperar contraseña
+
+En el inicio de sesión, "¿Olvidaste tu contraseña?" envía un correo con un enlace
+que caduca en 1 hora y solo sirve una vez. La respuesta es la misma exista o no la
+cuenta, para no revelar qué correos están registrados.
+
+Sin `EMAIL_HOST` configurado, el correo se imprime en la consola del backend
+(útil para desarrollo). Ver [Variables de entorno](#variables-de-entorno).
+
+### Exportar a Excel o CSV
+
+Clientes, Inventario, Proyectos y Cotizaciones tienen un botón **Exportar**.
+El Excel sale con encabezados, formato de moneda, fechas y filtros; el CSV usa
+UTF-8 para que Excel muestre bien los acentos. Solo se exportan los datos del
+taller del usuario. Endpoint: `GET /api/export/<clientes|inventario|proyectos|cotizaciones>/<csv|xlsx>/`.
+
+### Notificaciones
+
+La campana de la barra superior muestra las alertas del taller y cuántas no se han
+leído. Se actualiza cada 2 minutos y al volver a la pestaña. Las leídas se
+recuerdan por usuario en el navegador. Endpoint: `GET /api/dashboard/notifications/`.
+
+### Tema claro / oscuro
+
+El botón de sol/luna cambia el tema. Si nunca se eligió, se sigue el tema del
+sistema operativo.
+
+### App instalable (PWA)
+
+En producción la app se puede instalar desde el navegador (botón **Instalar app**
+en Chrome/Edge/Android, o "Agregar a inicio" en iPhone). Los archivos de la app se
+guardan para abrir más rápido; los datos del taller nunca se guardan en caché.
 
 ## Imágenes
 
@@ -112,11 +153,15 @@ Usuarios demo (contraseña `Demo1234!`): `admin@forja.demo`, `maker@forja.demo`,
 
 Para recrear los datos demo desde cero: `python manage.py seed_demo --reset`.
 
-Pruebas de aislamiento entre talleres:
+Pruebas automáticas (aislamiento entre talleres, permisos, inventario, costos,
+cotizaciones, notificaciones, exportación y recuperación de contraseña):
 
 ```bash
-python manage.py test apps
+python manage.py test
 ```
+
+Las mismas pruebas, junto con el lint y el build del frontend, corren en GitHub
+Actions en cada push y pull request (`.github/workflows/ci.yml`).
 
 ### Frontend
 
@@ -157,6 +202,18 @@ ALLOWED_HOSTS=127.0.0.1,localhost
 
 # Opcional: guardar imágenes en Cloudinary en vez de PostgreSQL
 CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+
+# Recuperación de contraseña
+FRONTEND_URL=http://localhost:5173      # dirección del frontend, para el enlace del correo
+# Opcional: servidor de correo. Sin EMAIL_HOST los correos se imprimen en la consola.
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=tu-correo@gmail.com
+EMAIL_HOST_PASSWORD=contraseña-de-aplicación
+DEFAULT_FROM_EMAIL=CosplayCraft Hub <tu-correo@gmail.com>
 ```
+
+En producción (Render) hay que definir `FRONTEND_URL` con la dirección de Vercel
+para que el enlace del correo apunte al sitio correcto.
 
 No se deben subir archivos `.env` al repositorio.

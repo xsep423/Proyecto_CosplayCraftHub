@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Search, Mail, Phone, MapPin, Edit2, Trash2 } from 'lucide-react';
 import Button from '../components/ui/Button';
+import ExportMenu from '../components/data/ExportMenu';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import { Input, Select } from '../components/ui/Input';
@@ -170,6 +171,7 @@ export default function Clients() {
             <option value="active" className="bg-surface">Activos</option>
             <option value="inactive" className="bg-surface">Inactivos</option>
           </select>
+          <ExportMenu resource="clientes" />
           {canEdit && (
             <Button onClick={openCreate} icon={<Plus size={16} />}>Nuevo Cliente</Button>
           )}
