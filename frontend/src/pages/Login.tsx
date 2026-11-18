@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { apiRequest } from '../services/api';
 import { saveSession } from '../lib/auth';
+import ThemeToggle from '../components/layout/ThemeToggle';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -52,6 +53,8 @@ export default function Login() {
         <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-accent/5 blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/3 blur-3xl" />
       </div>
+
+      <ThemeToggle className="absolute top-4 right-4 z-20" />
 
       <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
@@ -108,9 +111,9 @@ export default function Login() {
                 <input type="checkbox" className="accent-primary w-4 h-4 rounded" />
                 Recordarme
               </label>
-              <button type="button" className="text-sm text-primary hover:text-primary-hover transition-colors">
+              <Link to="/forgot-password" className="text-sm text-primary hover:text-primary-hover transition-colors">
                 ¿Olvidaste tu contraseña?
-              </button>
+              </Link>
             </div>
 				
 			{error && (

@@ -30,6 +30,14 @@ export const router = createBrowserRouter([
     Component: Register,
   },
   {
+    path: '/forgot-password',
+    lazy: page(() => import('./pages/ForgotPassword')),
+  },
+  {
+    path: '/reset-password',
+    lazy: page(() => import('./pages/ResetPassword')),
+  },
+  {
     // Portafolio público del taller (sin sesión)
     path: '/p/:slug',
     lazy: page(() => import('./pages/PublicPortfolio')),

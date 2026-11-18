@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'apps.dashboard',
     'apps.plataforma',
     'apps.gallery',
+    'apps.exports',
 ]
 
 MIDDLEWARE = [
@@ -147,6 +148,26 @@ IMAGE_STORAGE = 'cloudinary' if CLOUDINARY_URL else 'db'
 # Las fotos pueden pesar hasta 10 MB; el resto de peticiones sigue limitado a 2.5 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+
+
+# Correo (recuperación de contraseña).
+# Sin EMAIL_HOST los correos se imprimen en la consola, útil para desarrollo.
+EMAIL_HOST = config('EMAIL_HOST', default='')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_BACKEND = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST
+    else 'django.core.mail.backends.console.EmailBackend',
+)
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='CosplayCraft Hub <no-reply@cosplaycrafthub.local>')
+
+# Dirección del frontend: se usa para armar el enlace del correo de recuperación
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173').rstrip('/')
+# El enlace para restablecer la contraseña caduca en 1 hora
+PASSWORD_RESET_TIMEOUT = 60 * 60
 
 
 # Errores a la consola: así aparecen en los logs de Render aunque DEBUG esté apagado

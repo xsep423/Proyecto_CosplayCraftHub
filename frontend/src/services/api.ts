@@ -91,3 +91,26 @@ export async function publicApi<T>(path: string): Promise<T> {
   if (!res.ok) throw { status: res.status };
   return res.json();
 }
+
+/** Descarga un archivo de la API con la sesión actual (exportaciones CSV/Excel). */
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  const token = localStorage.getItem('access_token');
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (res.status === 401) {
+    logout();
+    window.location.href = '/login';
+    throw new Error('Sesión expirada');
+  }
+  if (!res.ok) throw new Error('No se pudo descargar el archivo.');
+
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

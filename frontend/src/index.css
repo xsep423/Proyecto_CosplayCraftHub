@@ -21,6 +21,32 @@
   --color-info: #3b82f6;
 }
 
+/* Tema claro: mismos nombres de color, otros valores (ver src/lib/theme.ts) */
+:root {
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: #f6f5fb;
+  --color-surface: #ffffff;
+  --color-panel: #f0eef7;
+  --color-border: #e2dfee;
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --color-accent: #db2777;
+  --color-text: #1c1a2e;
+  --color-muted: #625f80;
+  --color-success: #059669;
+  --color-warning: #b45309;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+}
+
+body {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
 *,
 *::before,
 *::after {

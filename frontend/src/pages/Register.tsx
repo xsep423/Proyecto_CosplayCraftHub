@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { saveSession, type Session } from '../lib/auth';
 import { API_URL } from '../services/api';
+import ThemeToggle from '../components/layout/ThemeToggle';
 
 
 type FieldErrors = Partial<Record<'workshopName' | 'city' | 'ownerName' | 'email' | 'password', string>>;
@@ -67,6 +68,8 @@ export default function Register() {
         <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-accent/5 blur-3xl" />
       </div>
+
+      <ThemeToggle className="absolute top-4 right-4 z-20" />
 
       <div className="relative z-10 w-full max-w-lg">
         <div className="flex flex-col items-center mb-8">

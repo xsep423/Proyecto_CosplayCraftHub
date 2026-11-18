@@ -1,4 +1,11 @@
+import logging
+
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -13,6 +20,8 @@ from .permissions import IsAdminRole
 from .serializers import (
     CreateMemberSerializer,
     LoginSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     RegisterWorkshopSerializer,
     WorkshopSerializer,
     build_session,
@@ -41,6 +50,63 @@ class RegisterWorkshopView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return Response(build_session(user), status=status.HTTP_201_CREATED)
+
+
+logger = logging.getLogger(__name__)
+
+RESET_REQUEST_MESSAGE = (
+    'Si el correo pertenece a una cuenta, te enviamos un enlace para restablecer la contraseña.'
+)
+
+
+def password_reset_link(user):
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    return f'{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}'
+
+
+class PasswordResetRequestView(APIView):
+    """
+    Envía por correo un enlace para restablecer la contraseña.
+    Siempre responde lo mismo, exista o no la cuenta, para no revelar qué correos están registrados.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        if user is not None and user.has_usable_password():
+            name = f'{user.first_name} {user.last_name}'.strip() or user.username
+            body = (
+                f'Hola {name}:\n\n'
+                'Recibimos una solicitud para restablecer tu contraseña de CosplayCraft Hub.\n'
+                'Abre este enlace para elegir una nueva (caduca en 1 hora):\n\n'
+                f'{password_reset_link(user)}\n\n'
+                'Si no fuiste tú, ignora este correo: tu contraseña no cambiará.\n'
+            )
+            try:
+                send_mail('Restablece tu contraseña', body, None, [user.email])
+            except Exception:
+                # Un fallo del servidor de correo no debe revelar que la cuenta existe
+                logger.exception('No se pudo enviar el correo de recuperación')
+
+        return Response({'detail': RESET_REQUEST_MESSAGE})
+
+
+class PasswordResetConfirmView(APIView):
+    """Cambia la contraseña con el uid y token del enlace del correo."""
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'detail': 'Tu contraseña se actualizó. Ya puedes iniciar sesión.'})
 
 
 class WorkshopView(APIView):

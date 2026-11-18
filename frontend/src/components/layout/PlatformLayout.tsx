@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { Building2, LayoutDashboard, LogOut, Menu, ShieldCheck, X } from 'lucide-react';
 import { getUserName, isPlatformAdmin, logout } from '../../lib/auth';
+import ThemeToggle from './ThemeToggle';
 
 const nav = [
   { to: '/platform', icon: LayoutDashboard, label: 'Resumen', end: true },
@@ -133,6 +134,7 @@ export default function PlatformLayout() {
           <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-accent/10 text-accent border border-accent/20">
             <ShieldCheck size={12} /> Super admin
           </span>
+          <ThemeToggle />
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <Outlet />
