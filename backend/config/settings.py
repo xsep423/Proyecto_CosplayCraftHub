@@ -157,13 +157,14 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-EMAIL_TIMEOUT = 10
-# Render (plan gratis) bloquea los puertos SMTP 25, 465 y 587, así que en
-# producción el correo sale por la API HTTP de Brevo cuando hay BREVO_API_KEY.
-BREVO_API_KEY = config('BREVO_API_KEY', default='')
-ANYMAIL = {'BREVO_API_KEY': BREVO_API_KEY}
-if BREVO_API_KEY:
-    _default_email_backend = 'anymail.backends.brevo.EmailBackend'
+EMAIL_TIMEOUT = 15
+# Render (plan gratis) bloquea los puertos SMTP, así que en producción el correo
+# sale por un Google Apps Script (HTTPS) cuando existe APPS_SCRIPT_MAIL_URL.
+APPS_SCRIPT_MAIL_URL = config('APPS_SCRIPT_MAIL_URL', default='')
+APPS_SCRIPT_MAIL_TOKEN = config('APPS_SCRIPT_MAIL_TOKEN', default='')
+EMAIL_SENDER_NAME = config('EMAIL_SENDER_NAME', default='CosplayCraft Hub')
+if APPS_SCRIPT_MAIL_URL:
+    _default_email_backend = 'config.email_backends.AppsScriptEmailBackend'
 elif EMAIL_HOST:
     _default_email_backend = 'django.core.mail.backends.smtp.EmailBackend'
 else:

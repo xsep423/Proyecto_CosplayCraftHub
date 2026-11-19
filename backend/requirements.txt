@@ -1,7 +1,6 @@
 asgiref==3.12.1
 cloudinary==1.47.0
 dj-database-url==3.1.2
-django-anymail==15.2
 django-cors-headers==4.9.0
 Django==6.1.1
 djangorestframework==3.18.1
@@ -14,7 +13,6 @@ psycopg2-binary==2.9.13
 psycopg==3.3.6
 PyJWT==2.15.0
 python-decouple==3.8
-requests==2.34.2
 sqlparse==0.6.0
 typing_extensions==4.16.0
 whitenoise==6.12.0
