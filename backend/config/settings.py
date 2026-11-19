@@ -157,11 +157,18 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-EMAIL_BACKEND = config(
-    'EMAIL_BACKEND',
-    default='django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST
-    else 'django.core.mail.backends.console.EmailBackend',
-)
+EMAIL_TIMEOUT = 10
+# Render (plan gratis) bloquea los puertos SMTP 25, 465 y 587, así que en
+# producción el correo sale por la API HTTP de Brevo cuando hay BREVO_API_KEY.
+BREVO_API_KEY = config('BREVO_API_KEY', default='')
+ANYMAIL = {'BREVO_API_KEY': BREVO_API_KEY}
+if BREVO_API_KEY:
+    _default_email_backend = 'anymail.backends.brevo.EmailBackend'
+elif EMAIL_HOST:
+    _default_email_backend = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    _default_email_backend = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = config('EMAIL_BACKEND', default=_default_email_backend)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='CosplayCraft Hub <no-reply@cosplaycrafthub.local>')
 
 # Dirección del frontend: se usa para armar el enlace del correo de recuperación
