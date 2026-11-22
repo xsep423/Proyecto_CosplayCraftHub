@@ -68,3 +68,53 @@ class ClienteTests(TenantAPITestCase):
         data = self.client.get(f'{URL}{cliente.pk}/').data
         self.assertEqual(data['projects'], 1)
         self.assertEqual(data['totalSpent'], 1000.0)
+
+
+class MedidasClienteTests(TenantAPITestCase):
+    def test_guarda_medidas_validas_y_fecha(self):
+        cliente = make_client(self.workshop)
+        self.as_user(self.maker)
+        res = self.client.patch(f'{URL}{cliente.pk}/', {
+            'measurements': {'busto': 92, 'cintura': '70.25', 'calzado': 25, 'cadera': ''},
+            'measurementNotes': 'Prefiere el corsé holgado',
+        }, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(res.data['measurements'], {'busto': 92.0, 'cintura': 70.2, 'calzado': 25.0})
+        self.assertEqual(res.data['measurementNotes'], 'Prefiere el corsé holgado')
+        self.assertIsNotNone(res.data['measurementsUpdatedAt'])
+
+    def test_rechaza_medidas_desconocidas_o_fuera_de_rango(self):
+        cliente = make_client(self.workshop)
+        self.as_user(self.maker)
+        for medidas in ({'alas': 50}, {'busto': -3}, {'busto': 900}, {'busto': 'mucho'}, ['busto']):
+            res = self.client.patch(f'{URL}{cliente.pk}/', {'measurements': medidas}, format='json')
+            self.assertEqual(res.status_code, 400, medidas)
+            self.assertIn('measurements', res.data)
+        cliente.refresh_from_db()
+        self.assertEqual(cliente.medidas, {})
+
+    def test_editar_otros_datos_no_cambia_fecha_de_medidas(self):
+        cliente = make_client(self.workshop)
+        self.as_user(self.maker)
+        self.client.patch(f'{URL}{cliente.pk}/', {'measurements': {'altura': 170}}, format='json')
+        cliente.refresh_from_db()
+        fecha = cliente.medidas_actualizadas
+        self.client.patch(f'{URL}{cliente.pk}/', {'city': 'León', 'measurements': {'altura': 170}}, format='json')
+        cliente.refresh_from_db()
+        self.assertEqual(cliente.medidas_actualizadas, fecha)
+
+    def test_viewer_ve_medidas_pero_no_las_edita(self):
+        cliente = make_client(self.workshop)
+        cliente.medidas = {'cintura': 68.0}
+        cliente.save()
+        self.as_user(self.viewer)
+        res = self.client.get(f'{URL}{cliente.pk}/')
+        self.assertEqual(res.data['measurements'], {'cintura': 68.0})
+        res = self.client.patch(f'{URL}{cliente.pk}/', {'measurements': {}}, format='json')
+        self.assertEqual(res.status_code, 403)
+
+    def test_medidas_de_otro_taller_no_son_accesibles(self):
+        cliente = make_client(self.other)
+        self.as_user(self.admin)
+        res = self.client.patch(f'{URL}{cliente.pk}/', {'measurements': {'busto': 90}}, format='json')
+        self.assertEqual(res.status_code, 404)

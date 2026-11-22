@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Wand2, Store, MapPin, User, Mail, Lock } from 'lucide-react';
+import { Wand2, Store, MapPin, User, Mail, Lock, MailCheck } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { saveSession, type Session } from '../lib/auth';
 import { API_URL } from '../services/api';
 import ThemeToggle from '../components/layout/ThemeToggle';
+import ResendVerification from '../components/auth/ResendVerification';
 
 
 type FieldErrors = Partial<Record<'workshopName' | 'city' | 'ownerName' | 'email' | 'password', string>>;
@@ -17,6 +18,7 @@ export default function Register() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState<{ email: string; detail: string; emailSent: boolean } | null>(null);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }));
@@ -53,6 +55,11 @@ export default function Register() {
         return;
       }
 
+      if (data.verificationRequired) {
+        // Hay que confirmar el correo antes de entrar
+        setPending({ email: data.email, detail: data.detail, emailSent: data.emailSent });
+        return;
+      }
       saveSession(data as Session);
       navigate('/dashboard', { replace: true });
     } catch {
@@ -81,6 +88,26 @@ export default function Register() {
         </div>
 
         <div className="bg-surface border border-border rounded-2xl p-8 shadow-2xl">
+          {pending ? (
+            <div className="text-center space-y-4">
+              <MailCheck size={40} className={`mx-auto ${pending.emailSent ? 'text-success' : 'text-warning'}`} />
+              <div>
+                <h2 className="text-lg font-semibold text-text">
+                  {pending.emailSent ? 'Revisa tu correo' : 'Taller registrado'}
+                </h2>
+                <p className="text-sm text-muted mt-2">{pending.detail}</p>
+              </div>
+              {pending.emailSent && (
+                <p className="text-xs text-muted">
+                  Abre el enlace para activar tu cuenta. Si no lo ves, revisa la carpeta de spam. Caduca en 3 días.
+                </p>
+              )}
+              <ResendVerification email={pending.email} />
+              <Link to="/login" className="block text-sm text-primary hover:text-primary-hover font-medium">
+                Ir a iniciar sesión
+              </Link>
+            </div>
+          ) : (<>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <p className="text-xs font-semibold text-muted uppercase tracking-widest mb-3">Taller</p>
@@ -164,6 +191,7 @@ export default function Register() {
               Inicia sesión
             </Link>
           </p>
+          </>)}
         </div>
       </div>
     </div>

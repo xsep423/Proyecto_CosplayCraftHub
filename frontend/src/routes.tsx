@@ -38,6 +38,10 @@ export const router = createBrowserRouter([
     lazy: page(() => import('./pages/ResetPassword')),
   },
   {
+    path: '/verify-email',
+    lazy: page(() => import('./pages/VerifyEmail')),
+  },
+  {
     // Portafolio público del taller (sin sesión)
     path: '/p/:slug',
     lazy: page(() => import('./pages/PublicPortfolio')),

@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router';
 import { Wand2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { apiRequest } from '../services/api';
+import { apiRequest, type ApiRequestError } from '../services/api';
+import ResendVerification from '../components/auth/ResendVerification';
 import { saveSession } from '../lib/auth';
 import ThemeToggle from '../components/layout/ThemeToggle';
 
@@ -14,12 +15,14 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
 	  e.preventDefault();
 
 	  setLoading(true);
 	  setError('');
+	  setNeedsVerification(false);
 
 	try {
 		const data = await apiRequest('/auth/login/', {
@@ -35,6 +38,8 @@ export default function Login() {
 		navigate(data.user?.role === 'superadmin' ? '/platform' : '/dashboard');
 
 	} catch (error) {
+		const code = (error as ApiRequestError).data?.code;
+		setNeedsVerification(Array.isArray(code) ? code[0] === 'email_not_verified' : code === 'email_not_verified');
 		setError(
 		  error instanceof Error
 			? error.message
@@ -121,6 +126,7 @@ export default function Login() {
 					{error}
 				</p>
 			)}
+			{needsVerification && <ResendVerification email={email.trim()} />}
 
             <Button type="submit" className="w-full mt-2" size="lg" loading={loading}>
               Iniciar sesión

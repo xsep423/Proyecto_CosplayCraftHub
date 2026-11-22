@@ -1,6 +1,9 @@
+from decimal import Decimal, InvalidOperation
+
+from django.utils import timezone
 from rest_framework import serializers
 
-from .models import Cliente
+from .models import MEDIDAS_KEYS, Cliente
 
 
 class ClienteSerializer(serializers.ModelSerializer):
@@ -14,12 +17,16 @@ class ClienteSerializer(serializers.ModelSerializer):
     projects = serializers.SerializerMethodField()
     totalSpent = serializers.SerializerMethodField()
     joinedAt = serializers.DateTimeField(source='fecha_registro', read_only=True, format='%Y-%m-%d')
+    measurements = serializers.JSONField(source='medidas', required=False)
+    measurementNotes = serializers.CharField(source='medidas_notas', required=False, allow_blank=True)
+    measurementsUpdatedAt = serializers.DateTimeField(source='medidas_actualizadas', read_only=True)
 
     class Meta:
         model = Cliente
         fields = [
             'id', 'name', 'email', 'phone', 'city', 'status',
             'notes', 'projects', 'totalSpent', 'joinedAt',
+            'measurements', 'measurementNotes', 'measurementsUpdatedAt',
         ]
 
     def validate_email(self, value):
@@ -30,6 +37,38 @@ class ClienteSerializer(serializers.ModelSerializer):
         if qs.exists():
             raise serializers.ValidationError('Ya existe un cliente con ese correo.')
         return value
+
+    def validate_measurements(self, value):
+        """Solo medidas conocidas, en cm, entre 1 y 300. Vacío o null borra la medida."""
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('Las medidas deben ser un objeto {medida: valor}.')
+        unknown = sorted(set(value) - set(MEDIDAS_KEYS))
+        if unknown:
+            raise serializers.ValidationError(f'Medidas no reconocidas: {", ".join(unknown)}.')
+        clean = {}
+        for key in MEDIDAS_KEYS:
+            raw = value.get(key)
+            if raw in (None, ''):
+                continue
+            try:
+                number = Decimal(str(raw))
+            except (InvalidOperation, ValueError):
+                raise serializers.ValidationError({key: 'Debe ser un número.'})
+            if not number.is_finite() or number <= 0 or number > 300:
+                raise serializers.ValidationError({key: 'Debe estar entre 1 y 300.'})
+            clean[key] = float(round(number, 1))
+        return clean
+
+    def _touch_measurements(self, instance, validated_data):
+        changed = (
+            ('medidas' in validated_data and validated_data['medidas'] != (instance.medidas if instance else {}))
+            or ('medidas_notas' in validated_data
+                and validated_data['medidas_notas'] != (instance.medidas_notas if instance else ''))
+        )
+        if changed:
+            validated_data['medidas_actualizadas'] = timezone.now()
 
     def get_projects(self, obj):
         # La vista lo anota; al crear o editar un cliente se cuenta aparte
@@ -52,9 +91,11 @@ class ClienteSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['apellidos'] = ''
+        self._touch_measurements(None, validated_data)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         if 'nombre' in validated_data:
             validated_data['apellidos'] = ''
+        self._touch_measurements(instance, validated_data)
         return super().update(instance, validated_data)

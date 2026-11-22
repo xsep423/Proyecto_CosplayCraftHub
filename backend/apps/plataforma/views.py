@@ -115,7 +115,8 @@ class PlatformWorkshopListView(APIView):
 
     def post(self, request):
         """Alta de un taller y su administrador desde la consola (no inicia sesión como él)."""
-        serializer = RegisterWorkshopSerializer(data=request.data)
+        # Lo da de alta el dueño de la plataforma: el correo nace confirmado
+        serializer = RegisterWorkshopSerializer(data=request.data, context={'email_verified': True})
         serializer.is_valid(raise_exception=True)
         admin_user = serializer.save()
         return Response(workshop_detail(admin_user.profile.workshop), status=status.HTTP_201_CREATED)

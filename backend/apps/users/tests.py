@@ -5,6 +5,7 @@ Pruebas de aislamiento multi-tenant.
 """
 from django.core.cache import cache
 from django.core.management import call_command
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from apps.clientes.models import Cliente
@@ -143,6 +144,7 @@ class MultiTenantTests(APITestCase):
 
     # ---------- Alta de tenant ----------
 
+    @override_settings(REQUIRE_EMAIL_VERIFICATION=False)
     def test_registro_de_nuevo_taller(self):
         res = self.client.post('/api/auth/register/', {
             'workshopName': 'Taller Nuevo', 'ownerName': 'Kevin Carretero',

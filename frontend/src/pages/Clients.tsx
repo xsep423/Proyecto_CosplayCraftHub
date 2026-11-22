@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Mail, Phone, MapPin, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, Mail, Phone, MapPin, Edit2, Trash2, Ruler } from 'lucide-react';
 import Button from '../components/ui/Button';
 import ExportMenu from '../components/data/ExportMenu';
 import Badge from '../components/ui/Badge';
@@ -8,6 +8,9 @@ import { Input, Select } from '../components/ui/Input';
 import type { Client } from '../types';
 import { api } from '../services/api';
 import { getRole } from '../lib/auth';
+import MeasurementsModal from '../components/clients/MeasurementsModal';
+import MeasurementsGrid from '../components/clients/MeasurementsGrid';
+import { measurementCount } from '../lib/measurements';
 
 const cities = ['Tijuana', 'CDMX', 'Guadalajara', 'Monterrey', 'Puebla', 'Querétaro'];
 
@@ -47,6 +50,8 @@ export default function Clients() {
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [measureTarget, setMeasureTarget] = useState<Client | null>(null);
+  const [measureView, setMeasureView] = useState<Client | null>(null);
 
   const role = getRole();
   const canEdit = role !== 'viewer';
@@ -231,6 +236,24 @@ export default function Clients() {
               </div>
             </div>
 
+            {(() => {
+              const count = Object.keys(c.measurements ?? {}).length;
+              return (
+                <button
+                  onClick={() => (canEdit ? setMeasureTarget(c) : setMeasureView(c))}
+                  className="w-full mb-4 flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-panel hover:bg-panel/70 border border-border hover:border-primary/40 transition-colors text-left"
+                  title={canEdit ? 'Ver y editar medidas' : 'Ver medidas'}
+                >
+                  <span className="flex items-center gap-2 text-xs font-medium text-text">
+                    <Ruler size={13} className="text-primary" /> Medidas
+                  </span>
+                  <span className={`text-xs font-mono ${count ? 'text-text' : 'text-muted'}`}>
+                    {count ? `${count}/${measurementCount}` : 'Sin registrar'}
+                  </span>
+                </button>
+              );
+            })()}
+
             <div className="border-t border-border pt-3 flex items-center justify-between">
               <div className="text-center">
                 <p className="text-sm font-bold font-mono text-text">{c.projects}</p>
@@ -288,6 +311,28 @@ export default function Clients() {
           <Input label="Notas" value={form.notes} onChange={set('notes')} placeholder="Notas adicionales..." />
           {formError && <p className="text-xs text-red-400">{formError}</p>}
         </div>
+      </Modal>
+
+      <MeasurementsModal
+        client={measureTarget}
+        onClose={() => setMeasureTarget(null)}
+        onSaved={updated => setClients(cs => cs.map(c => (c.id === updated.id ? updated : c)))}
+      />
+
+      <Modal
+        open={!!measureView}
+        onClose={() => setMeasureView(null)}
+        title={measureView ? `Medidas de ${measureView.name}` : 'Medidas'}
+        size="lg"
+      >
+        {measureView && (
+          <div className="space-y-4">
+            <MeasurementsGrid measurements={measureView.measurements ?? {}} />
+            {measureView.measurementNotes && (
+              <p className="text-sm text-text whitespace-pre-line"><span className="text-muted">Notas: </span>{measureView.measurementNotes}</p>
+            )}
+          </div>
+        )}
       </Modal>
 
       {/* Delete Modal */}

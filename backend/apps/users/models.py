@@ -73,6 +73,9 @@ class Profile(models.Model):
         blank=True,
     )
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.VIEWER)
+    # Quien se registra solo debe confirmar su correo antes de entrar.
+    # Los usuarios que crea un admin (o los que ya existían) nacen confirmados.
+    email_verified = models.BooleanField('correo confirmado', default=True)
 
     def __str__(self):
         return f'{self.user.username} ({self.role})'

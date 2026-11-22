@@ -2,6 +2,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import update_last_login
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
@@ -76,6 +77,11 @@ def build_session(user):
     }
 
 
+EMAIL_NOT_VERIFIED_MESSAGE = (
+    'Confirma tu correo para entrar. Revisa tu bandeja (y spam) o pide un enlace nuevo.'
+)
+
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -91,6 +97,12 @@ class LoginSerializer(serializers.Serializer):
         authenticated_user = authenticate(username=user.username, password=password)
         if authenticated_user is None:
             raise serializers.ValidationError('Correo o contraseña incorrectos.')
+
+        # Se revisa después de la contraseña para no revelar el estado de cuentas ajenas
+        if settings.REQUIRE_EMAIL_VERIFICATION and not get_profile(authenticated_user).email_verified:
+            raise serializers.ValidationError(
+                {'detail': EMAIL_NOT_VERIFIED_MESSAGE, 'code': 'email_not_verified'}
+            )
 
         workshop = get_profile(authenticated_user).workshop
         if workshop is None:
@@ -157,7 +169,14 @@ class RegisterWorkshopSerializer(serializers.Serializer):
                 )
                 Profile.objects.update_or_create(
                     user=user,
-                    defaults={'workshop': workshop, 'role': Profile.Role.ADMIN},
+                    defaults={
+                        'workshop': workshop,
+                        'role': Profile.Role.ADMIN,
+                        'email_verified': (
+                            self.context.get('email_verified', False)
+                            or not settings.REQUIRE_EMAIL_VERIFICATION
+                        ),
+                    },
                 )
         except IntegrityError:
             # Otra alta idéntica ganó la carrera: nada se guarda (rollback)
@@ -281,4 +300,25 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user = self.validated_data['user']
         user.set_password(self.validated_data['password'])
         user.save(update_fields=['password'])
+        # Abrir el enlace del correo demuestra que el correo es suyo
+        Profile.objects.filter(user=user, email_verified=False).update(email_verified=True)
         return user
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+    INVALID_LINK = 'El enlace no es válido o ya caducó. Pide uno nuevo desde el inicio de sesión.'
+
+    def validate(self, attrs):
+        from .email_verification import user_from_token
+
+        user = user_from_token(attrs['token'])
+        if user is None:
+            raise serializers.ValidationError(self.INVALID_LINK)
+        attrs['user'] = user
+        return attrs
+
+
+class ResendVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField()

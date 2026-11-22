@@ -1,5 +1,27 @@
 from django.db import models
 
+# Medidas corporales en centímetros (la talla de calzado es talla MX).
+# El orden es el que se muestra en la ficha del cliente.
+MEDIDAS = [
+    ('altura', 'Altura'),
+    ('cabeza', 'Contorno de cabeza'),
+    ('cuello', 'Cuello'),
+    ('hombros', 'Ancho de hombros'),
+    ('busto', 'Busto / pecho'),
+    ('bajo_busto', 'Bajo busto'),
+    ('cintura', 'Cintura'),
+    ('cadera', 'Cadera'),
+    ('largo_espalda', 'Largo de espalda'),
+    ('largo_brazo', 'Largo de brazo'),
+    ('biceps', 'Contorno de bíceps'),
+    ('muneca', 'Muñeca'),
+    ('entrepierna', 'Entrepierna'),
+    ('muslo', 'Muslo'),
+    ('pantorrilla', 'Pantorrilla'),
+    ('calzado', 'Talla de calzado'),
+]
+MEDIDAS_KEYS = [k for k, _ in MEDIDAS]
+
 
 class Cliente(models.Model):
     class Estado(models.TextChoices):
@@ -17,6 +39,10 @@ class Cliente(models.Model):
     estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ACTIVO)
     direccion = models.TextField(blank=True, null=True)
     notas = models.TextField(blank=True, null=True)
+    # Medidas para confeccionar trajes; se reutilizan en todos sus proyectos
+    medidas = models.JSONField(default=dict, blank=True)
+    medidas_notas = models.TextField(blank=True, default='')
+    medidas_actualizadas = models.DateTimeField(null=True, blank=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -16,7 +16,17 @@ export interface Client {
   joinedAt: string;
   avatar?: string;
   notes?: string;
+  measurements: Measurements;
+  measurementNotes: string;
+  measurementsUpdatedAt: string | null;
 }
+
+export type Measurements = Partial<Record<MeasurementKey, number>>;
+
+export type MeasurementKey =
+  | 'altura' | 'cabeza' | 'cuello' | 'hombros' | 'busto' | 'bajo_busto' | 'cintura' | 'cadera'
+  | 'largo_espalda' | 'largo_brazo' | 'biceps' | 'muneca' | 'entrepierna' | 'muslo' | 'pantorrilla'
+  | 'calzado';
 
 export interface ImageRef {
   id: string;

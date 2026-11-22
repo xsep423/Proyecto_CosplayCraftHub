@@ -176,6 +176,11 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='CosplayCraft Hub <no-
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173').rstrip('/')
 # El enlace para restablecer la contraseña caduca en 1 hora
 PASSWORD_RESET_TIMEOUT = 60 * 60
+# Quien registra un taller nuevo debe confirmar su correo antes de iniciar sesión.
+# Se puede apagar con REQUIRE_EMAIL_VERIFICATION=False (p. ej. si el correo no está configurado).
+REQUIRE_EMAIL_VERIFICATION = config('REQUIRE_EMAIL_VERIFICATION', default=True, cast=bool)
+# El enlace de confirmación caduca en 3 días
+EMAIL_VERIFICATION_MAX_AGE = 60 * 60 * 24 * 3
 
 
 # Errores a la consola: así aparecen en los logs de Render aunque DEBUG esté apagado

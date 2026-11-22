@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft, Edit2, Plus, GripVertical, Trash2,
   ClipboardList, ListTodo, Package, DollarSign, FileText, Calendar, User,
-  Camera, Globe, Lock, Printer,
+  Camera, Globe, Lock, Printer, Ruler,
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -12,6 +12,7 @@ import Modal from '../components/ui/Modal';
 import { Input, Select, Textarea } from '../components/ui/Input';
 import PhotoGallery from '../components/media/PhotoGallery';
 import Lightbox from '../components/media/Lightbox';
+import ClientMeasurementsPanel from '../components/clients/ClientMeasurementsPanel';
 import { api, mediaUrl } from '../services/api';
 import { getRole } from '../lib/auth';
 import {
@@ -385,6 +386,7 @@ export default function ProjectDetail() {
   const tabs = [
     { id: 'summary', label: 'Resumen', icon: <ClipboardList size={14} /> },
     { id: 'photos', label: 'Fotos', icon: <Camera size={14} />, badge: project.photoCount },
+    { id: 'measurements', label: 'Medidas', icon: <Ruler size={14} /> },
     { id: 'tasks', label: 'Tareas', icon: <ListTodo size={14} />, badge: tasks.length },
     { id: 'materials', label: 'Materiales', icon: <Package size={14} />, badge: usedMaterials.length },
     { id: 'costs', label: 'Costos', icon: <DollarSign size={14} /> },
@@ -530,6 +532,10 @@ export default function ProjectDetail() {
 
             if (active === 'photos') return (
               <PhotoGallery projectId={project.id} canEdit={canEdit} onChange={reloadProject} />
+            );
+
+            if (active === 'measurements') return (
+              <ClientMeasurementsPanel clientId={project.clientId} canEdit={canEdit} />
             );
 
             if (active === 'tasks') return (

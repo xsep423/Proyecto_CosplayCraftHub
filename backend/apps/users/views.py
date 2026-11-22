@@ -15,14 +15,17 @@ from rest_framework.views import APIView
 
 from apps.gallery.storage import save_upload
 
-from .models import Profile, get_role
+from .email_verification import send_verification_email
+from .models import Profile, get_profile, get_role
 from .permissions import IsAdminRole
 from .serializers import (
     CreateMemberSerializer,
+    EmailVerificationSerializer,
     LoginSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RegisterWorkshopSerializer,
+    ResendVerificationSerializer,
     WorkshopSerializer,
     build_session,
 )
@@ -41,7 +44,11 @@ class LoginView(APIView):
 
 
 class RegisterWorkshopView(APIView):
-    """Alta de un nuevo taller (tenant). Devuelve la sesión ya iniciada."""
+    """
+    Alta de un nuevo taller (tenant).
+    Si hay que confirmar el correo, manda el enlace y NO inicia sesión;
+    si no (REQUIRE_EMAIL_VERIFICATION=False), devuelve la sesión ya iniciada.
+    """
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
 
@@ -49,7 +56,58 @@ class RegisterWorkshopView(APIView):
         serializer = RegisterWorkshopSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(build_session(user), status=status.HTTP_201_CREATED)
+        if not settings.REQUIRE_EMAIL_VERIFICATION:
+            return Response(build_session(user), status=status.HTTP_201_CREATED)
+        sent = send_verification_email(user)
+        return Response({
+            'verificationRequired': True,
+            'email': user.email,
+            'emailSent': sent,
+            'detail': (
+                f'Te enviamos un enlace a {user.email} para confirmar tu correo.'
+                if sent else
+                'Tu taller quedó registrado, pero no pudimos enviar el correo de confirmación. '
+                'Intenta reenviarlo en unos minutos.'
+            ),
+        }, status=status.HTTP_201_CREATED)
+
+
+class VerifyEmailView(APIView):
+    """Confirma el correo con el token del enlace y deja la sesión iniciada."""
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    def post(self, request):
+        serializer = EmailVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        profile = get_profile(user)
+        if profile.email_verified:
+            # El enlace solo inicia sesión una vez
+            return Response({'alreadyVerified': True, 'detail': 'Tu correo ya estaba confirmado. Inicia sesión.'})
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
+        return Response(build_session(user))
+
+
+RESEND_MESSAGE = 'Si la cuenta existe y falta confirmarla, te enviamos un enlace nuevo.'
+
+
+class ResendVerificationView(APIView):
+    """Reenvía el enlace. Responde igual exista o no la cuenta."""
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    def post(self, request):
+        serializer = ResendVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.filter(
+            email__iexact=serializer.validated_data['email'], is_active=True,
+            profile__email_verified=False,
+        ).first()
+        if user is not None:
+            send_verification_email(user)
+        return Response({'detail': RESEND_MESSAGE})
 
 
 logger = logging.getLogger(__name__)

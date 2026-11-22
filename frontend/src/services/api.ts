@@ -9,6 +9,8 @@ const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 export const API_URL: string =
   import.meta.env.VITE_API_URL || (isLocal ? 'http://localhost:8000/api' : PRODUCTION_API_URL);
 
+export type ApiRequestError = Error & { data?: Record<string, unknown> };
+
 export async function apiRequest(
   endpoint: string,
   options: RequestInit = {}
@@ -24,11 +26,15 @@ export async function apiRequest(
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(
-      data.detail ||
+    const detail = Array.isArray(data.detail) ? data.detail[0] : data.detail;
+    const error = new Error(
+      detail ||
       data.non_field_errors?.[0] ||
       'Ocurrió un error en la petición.'
-    );
+    ) as ApiRequestError;
+    // Para casos especiales (p. ej. code = 'email_not_verified' en el login)
+    error.data = data;
+    throw error;
   }
 
   return data;

@@ -203,6 +203,19 @@ class Command(BaseCommand):
             clients.append(Cliente.objects.create(
                 workshop=workshop, nombre=first, apellidos=last, correo=email, ciudad=city,
             ))
+        # Medidas de ejemplo para los dos primeros clientes de cada taller
+        demo_medidas = [
+            ({'altura': 182, 'cabeza': 58, 'cuello': 40, 'hombros': 48, 'busto': 104, 'cintura': 88,
+              'cadera': 100, 'largo_espalda': 46, 'largo_brazo': 64, 'biceps': 34, 'entrepierna': 82,
+              'calzado': 28}, 'Armadura: dejar 2 cm de holgura en torso.'),
+            ({'altura': 163, 'cuello': 33, 'hombros': 38, 'busto': 88, 'bajo_busto': 74, 'cintura': 66,
+              'cadera': 94, 'largo_brazo': 56, 'muneca': 15, 'calzado': 24}, 'Corsé: prefiere ajuste firme.'),
+        ]
+        for cliente, (medidas, notas) in zip(clients, demo_medidas):
+            cliente.medidas = medidas
+            cliente.medidas_notas = notas
+            cliente.medidas_actualizadas = timezone.now()
+            cliente.save(update_fields=['medidas', 'medidas_notas', 'medidas_actualizadas'])
 
         materials = []
         for name, cat, qty, unit, cost, min_stock, supplier, location in data['materials']:
